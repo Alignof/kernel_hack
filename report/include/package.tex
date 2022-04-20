@@ -1,0 +1,35 @@
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{here}
+\usepackage{ascmac}
+\usepackage{xcolor}
+\usepackage{listing}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{accsupp}
+\usepackage[outputdir=./src]{minted}
+\usepackage[utf8]{inputenc}
+\usepackage[most, theorems, listings, minted, breakable]{tcolorbox}
+
+\setlength{\textwidth}{\fullwidth}
+\setlength{\textheight}{40\baselineskip}
+\addtolength{\textheight}{\topskip}
+\setlength{\voffset}{-0.2in}
+\setlength{\topmargin}{0pt}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm]{geometry}
+
+\newcommand{\divergence}{\mathrm{div}\,}  %ダイバージェンス
+\newcommand{\grad}{\mathrm{grad}\,}  %グラディエント
+\newcommand{\rot}{\mathrm{rot}\,}  %ローテーション
+
+% ignore line number
+\newcommand\emptyaccsupp[1]{\BeginAccSupp{ActualText={}}#1\EndAccSupp{}}
+\let\theHFancyVerbLine\theFancyVerbLine
+\def\theFancyVerbLine{\rmfamily\tiny\emptyaccsupp{\arabic{FancyVerbLine}}}
+
+\definecolor{cite_green}{HTML}{006600}
+\renewcommand\thefootnote{\textcolor{red}{\arabic{footnote}}}
+\usepackage[dvipdfmx,setpagesize=false,
+            colorlinks=true,linkcolor=black,anchorcolor=red,citecolor=cite_green,urlcolor=blue]{hyperref}

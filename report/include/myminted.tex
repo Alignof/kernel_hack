@@ -1,0 +1,39 @@
+\definecolor{bg}{HTML}{333333}
+\definecolor{line}{HTML}{000000}
+
+\newenvironment{longlisting}{\captionsetup{type=listing}}{}
+\renewcommand\listtablename{表}
+\renewcommand\listingscaption{リスト}
+
+\setminted{
+    linenos=true,
+    autogobble,
+}
+
+\newtcblisting[]{myminted}[3][]{%
+    theorem={Listing}{listings}{#3}{},
+    fonttitle=\scriptsize\bfseries,
+    listing engine=minted,
+    minted style=monokai,
+    minted language=#2,
+    colback=bg,
+    minted options={%
+        linenos,
+        breaklines, 
+        breakbefore=.,
+        autogobble,
+        fontsize=\small,
+        numbersep=3mm,
+        xleftmargin=2mm,
+        baselinestretch=1
+    },%
+    overlay={%
+        \begin{tcbclipinterior}
+           \fill[gray!25] (frame.south west) rectangle ([xshift=5mm]frame.north west);
+        \end{tcbclipinterior}
+    },
+    breakable,
+    enhanced,
+    listing only,
+    #1,
+}%
