@@ -2,14 +2,14 @@
 .global main
 
 .LC1:
-    .string "./test_dir\n"
+    .string "test_dir"
 
 main:
     push rbp
     mov rbp, rsp
 
-    mov rax, 40 # rmdir
-    mov rdi, OFFSET FLAT:.LC1
+    mov rax, 84 # rmdir
+    lea rdi, .LC1[rip]
 
     syscall
 
