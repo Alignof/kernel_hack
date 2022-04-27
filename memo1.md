@@ -2,10 +2,12 @@
 host
 ```.sh
 $ cd kernel_hack/linux-5.17.1/
+$ make menuconfig
+$ vim .config (CONFIG_RANDOMIZE_BASE=n)
 $ ./scripts/config --disable SYSTEM_TRUSTED_KEYS
 $ ./scripts/config --disable SYSTEM_REVOCATION_KEYS
 $ ./scripts/config --disable MODULE_SIG_KEY
-$ make -j8 bindeb-pkg
+$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-DisableRandomizeBase
 ```
 
 guest

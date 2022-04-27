@@ -3,7 +3,7 @@
 .global main
 
 .LC1:
-    .string "test_dir"
+    .string "target_dir"
 
 main:
     push rbp
@@ -20,8 +20,11 @@ main:
 ```
 
 ```.zsh
-$ peda
-gdb-peda$ file vmlinux
-gdb-peda$ target remote localhost:8864
-gdb-peda$ lx-symbols
+$ gdb
+>>> file vmlinux
+>>> target remote localhost:8864
+>>> lx-symbols
+>>> b __x64_sys_rmdir (see https://elixir.bootlin.com/linux/v5.17.1/source/arch/x86/entry/syscalls/syscall_64.tbl)
+>>> c
+>>> b do_rmdir (see https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4037)
 ```
