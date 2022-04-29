@@ -28,3 +28,4 @@ $ gdb
 >>> c
 >>> b do_rmdir (see https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4037)
 ```
+
