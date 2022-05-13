@@ -1,3 +1,4 @@
+# tutorial
 ## host
 ```.sh
 $ cd ~/kernel_hack/linux-5.17.1/arch/x86/kernel
@@ -16,6 +17,7 @@ $ sudo dpkg -r linux-image-5.17.1-dbg
 $ dpkg --install *AddMySyscall*
 $ uname -a
 Linux ubuntu 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+$ cd ~/tmp
 $ cp ~/kernel_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd_64.h .
 $ cp ~/kernel_hack/my_repo/src/call_mysyscall* .
 $ gcc gcc call_mysyscall.c -o CallMySyscall
@@ -24,3 +26,15 @@ my_syscall(10) -> 10
 $ dmesg | tail -n 1
 [  245.026362] hello world!
 ```
+# create my syscall
+## host
+```.sh
+$ cd ~/kernel_hack/linux-5.17.1/arch/x86/kernel
+$ cp ~/kernel_hack/myrepo/src/CH3/my_syscall.c  ./swapdir.c
+$ vim ~/kernel_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += swapdir.o" to line 59)
+$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys_swapdir( const char __user *dir1, const char __user *dir2 );" to line 1000)
+$ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336 common  swapdir         sys_swapdir")
+$ cd ~/kernel_hack/linux-5.17.1/
+$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddSwapdir
+```
+
