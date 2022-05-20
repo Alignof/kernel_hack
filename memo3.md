@@ -14,7 +14,7 @@ $ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddMySyscall
 $ cd kernel_hack/
 $ sudo dpkg -r linux-image-5.17.1
 $ sudo dpkg -r linux-image-5.17.1-dbg
-$ dpkg --install *AddMySyscall*
+$ sudo dpkg --install *AddMySyscall*.deb
 $ uname -a
 Linux ubuntu 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
 $ cd ~/tmp
@@ -37,4 +37,10 @@ $ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336 common  swapdir 
 $ cd ~/kernel_hack/linux-5.17.1/
 $ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddSwapdir
 ```
-
+## guest 
+```.sh
+$ cd kernel_hack/
+$ sudo dpkg -r linux-image-5.17.1
+$ sudo dpkg -r linux-image-5.17.1-dbg
+$ sudo dpkg --install *AddSwapdir*.deb
+```
