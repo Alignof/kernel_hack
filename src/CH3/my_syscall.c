@@ -54,6 +54,10 @@ int do_median(int __user *_array, int size, float __user *_result) {
 }
 
 // https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4097
-SYSCALL_DEFINE3(median, int __user *, _array, const int size, float __user *, _result) {
-    return do_sort_array(_array, size, _result);
+SYSCALL_DEFINE3(median,
+        int __user *, _array,
+        const int, size,
+        float __user *, _result) {
+
+    return do_median(_array, size, _result);
 }
