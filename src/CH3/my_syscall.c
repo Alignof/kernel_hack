@@ -33,20 +33,27 @@ void quick_sort (int *array, int left, int right) {
     }
 }
 
-int do_median(int *array, int size, float *result) {
+int do_median(int __user *_array, int size, float __user *_result) {
+    int *array;
+    float *result;
+
+    copy_from_user(array, _array, size * sizeof(int));
+    copy_from_user(result, _result, sizeof(float));
+
     quick_sort(array, 0, size-1);
     if (size % 2) {
         *result = (float)array[size/2];
     } else {
         *result = (float)((array[(size-1)/2] + array[size/2]) / 2.0);
     }
+
+    copy_to_user(_result, result, sizeof(float));
     
     printk("syscall median done.");
     return 0;
 }
 
 // https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4097
-SYSCALL_DEFINE2(median, int __user *, array, const int size, float __user *, result) {
-    return do_sort_array(array, size, result);
+SYSCALL_DEFINE3(median, int __user *, _array, const int size, float __user *, _result) {
+    return do_sort_array(_array, size, _result);
 }
-
