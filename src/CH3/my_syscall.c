@@ -4,8 +4,9 @@
 #define	EINVAL		22	/* Invalid argument */
 
 void myswap (int *x, int *y) {
-    int tmp = *x;
+    int tmp;
 
+    tmp = *x;
     *x = *y;
     *y = tmp;
 }
@@ -36,22 +37,20 @@ void quick_sort (int *array, int left, int right) {
     }
 }
 
-int do_median(int __user *_array, int size, int __user *_result) {
-    int *array = NULL;
-    int *result = NULL;
+int do_median(int __user *_array, const int size, int __user *_result) {
+    int array[100] = {0};
+    int result = 0;
 
+    printk("syscall median start.");
     if (size <= 0) return EINVAL;
-    if (copy_from_user(array, _array, size * sizeof(int)) > 0) return EFAULT;
-    if (copy_from_user(result, _result, sizeof(int)) > 0) return EFAULT;
+    if (copy_from_user(array, _array, sizeof(int) * size) > 0) return EFAULT;
+    if (copy_from_user(&result, _result, sizeof(int)) > 0) return EFAULT;
 
     quick_sort(array, 0, size-1);
-    if (size % 2) {
-        *result = array[size/2];
-    } else {
-        *result = ((array[(size-1)/2] + array[size/2]) / 2);
-    }
 
-    if (copy_to_user(_result, result, sizeof(int)) > 0) return EFAULT;
+    result = array[size/2];
+
+    if (copy_to_user(_result, &result, sizeof(int)) > 0) return EFAULT;
     
     printk("syscall median done.");
     return 0;
