@@ -3,15 +3,32 @@
 \input{include/package.tex}
 \input{include/myminted.tex}
 
-\title{\LaTeX のtemplate}
-\author{高名 典雅}
-\date{\today}
-
 \begin{document}
 \include{titlepage}
 
-\chapter{はじめに}
+\chapter{カーネルのコンパイルとパラメタの設定}
+パラメタの設定にはmenuconfigを用いた．
+\begin{quote}
+\$ make menuconfig
+\end{quote}
+と叩くとTUIで余分なモジュールを無効にできるのでNetworkやVirtualization内にある不要そうなドライバやモジュールを無効化した．
 
-\chapter{終わりに}
+% ここに行数などのdiffの比較を置く
+
+ビルド中の認証を回避するために以下のコマンドを実行した．
+\begin{quote}
+\$ ./scripts/config --disable SYSTEM_TRUSTED_KEYS
+\$ ./scripts/config --disable SYSTEM_REVOCATION_KEYS
+\$ ./scripts/config --disable MODULE_SIG_KEY
+\end{quote}
+これらの設定項目はビルドするコードが
+
+
+
+\chapter{カーネルのリモート・デバッグ}
+また，課題2でカーネルのリモートデバッグを有効にするために.configを直接編集してCONFIG_RANDOMIZE_BASEを無効化し，CONFIG_DEBUG_INFOを有効化した．
+これによりデバッグ情報が付加されてデバッガでコードが追えるようになり，
+
+\chapter{システムコールの追加}
 
 \end{document}
