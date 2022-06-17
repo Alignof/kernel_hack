@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include "tutorial_kernel_module.h"
 #define DRIVER_NAME "MyDevice"
 #define BUF_SIZE 256
 
@@ -16,7 +17,36 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 struct _mydevice_file_data {
     unsigned char buffer[BUF_SIZE];
+    struct parameter param;
 };
+
+static long mydevice_ioctl(struct file *fp, unsigned int cmd, unsigned long arg) {
+    printk("called ioctl\n");
+
+    int tmp = 0;
+    switch (cmd) {
+        case MYDEVICE_SET_VALUES:
+            if (copy_from_user(&(((struct _mydevice_file_data *)fp->private_data)->param), (struct parameter __user *)arg, sizeof(struct parameter))) {
+                return -EFAULT;
+            }
+            break;
+        case MYDEVICE_GET_VALUES:
+            if (copy_to_user((struct parameter __user *)arg, &(((struct _mydevice_file_data *)fp->private_data)->param), sizeof(struct parameter))) {
+                return -EFAULT;
+            }
+            break;
+        case MYDEVICE_SWAP_VALUES:
+            tmp = ((struct _mydevice_file_data *)fp->private_data)->param.value1;
+            ((struct _mydevice_file_data *)fp->private_data)->param.value1 = ((struct _mydevice_file_data *)fp->private_data)->param.value2;
+            ((struct _mydevice_file_data *)fp->private_data)->param.value2 = tmp;
+            break;
+        default:
+            printk(KERN_WARNING "unsupported command %d\n", cmd);
+            return -EFAULT;
+    }
+
+    return 0;
+}
 
 static int mydevice_open(struct inode *inode, struct file *fp) {
     printk("open my device\n");
@@ -28,6 +58,8 @@ static int mydevice_open(struct inode *inode, struct file *fp) {
     }
 
     strlcat(p->buffer, "init", 4);
+    p->param.value1 = 0;
+    p->param.value2 = 0;
     fp->private_data = p;
 
     return 0;
@@ -38,7 +70,6 @@ static int mydevice_close(struct inode *inode, struct file *fp) {
 
     if (fp->private_data) {
         kfree(fp->private_data);
-        fp->private_data = NULL;
     }
 
     return 0;
@@ -71,6 +102,7 @@ struct file_operations s_mydevice_fops = {
     .release = mydevice_close,
     .read    = mydevice_read,
     .write   = mydevice_write,
+    .unlocked_ioctl = mydevice_ioctl,
 };
 
 static int mydevice_init(void) {
