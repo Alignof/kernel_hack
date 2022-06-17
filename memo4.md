@@ -1,6 +1,11 @@
 # tutorial
 ## host
-
-# create my syscall
+```.sh
+$ make
+$ make load
+$ gcc call_mydevice.c
+$ ./a.out
+$ make unload
+```
 
 
