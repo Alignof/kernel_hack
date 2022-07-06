@@ -4,11 +4,13 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
+#include <linux/cpufreq.h>
+#include <asm/processor.h>
 #include "my_procfs.h"
 
 #define DRIVER_NAME "MyDevice"
 #define PROC_NAME "MyProcFs"
-#define BUF_SIZE 128
+#define BUF_SIZE 256
 
 static unsigned int major_num;
 static unsigned int read_ok = 1;
@@ -19,8 +21,29 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int mydevice_open(struct inode *inode, struct file *fp) {
     printk("open my device\n");
 
-    read_ok = 1;
+    int cpu_id = 0;
+	struct cpuinfo_x86 *c = &cpu_data(cpu_id);
 
+    snprintf(
+        buffer, 
+        BUF_SIZE, 
+        "vender id: %s\n"
+        "cpu family: %u\n"
+        "model: %s\n"
+        "cpu MHz: %u\n"
+        "cache size: %u KB\n"
+        "core id: %u\n"
+        "cpu cores: %u\n",
+        c->x86_vendor_id,
+        c->x86,
+        c->x86_model_id,
+        cpufreq_generic_get(cpu_id),
+        c->x86_cache_size,
+        c->cpu_core_id,
+        c->x86_max_cores
+    );
+
+    read_ok = 1;
     return 0;
 }
 
