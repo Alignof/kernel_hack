@@ -1,4 +1,5 @@
 obj-m := my_procfs.o
+EXTRA_CFLAGS := -I/home/tsukubataro/kernel_hack/linux-5.17.1/arch
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
