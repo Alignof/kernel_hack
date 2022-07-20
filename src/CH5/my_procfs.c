@@ -6,6 +6,8 @@
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
+#include <linux/utsname.h>
+#include <linux/time_namespace.h>
 #include <asm/page_types.h>
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
@@ -38,25 +40,34 @@ static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, l
     const int cpu_id = 0;
     struct cpuinfo_x86 *c = &cpu_data(cpu_id);
 
-    unsigned int freq;
+    unsigned int freq = cpufreq_quick_get(cpu_id);
+    /*
     if (cpu_has(c, X86_FEATURE_TSC)) {
         freq = aperfmperf_get_khz(cpu_id);
 
         if (!freq) freq = cpufreq_quick_get(cpu_id);
         if (!freq) freq = cpu_khz;
     }
+    */
 
     struct sysinfo mem_info;
     si_meminfo(&mem_info);
 
+    struct timespec64 uptime;
+    ktime_get_boottime_ts64(&uptime);
+	timens_add_boottime(&uptime);
+
     int size = snprintf(
         buffer, 
         BUF_SIZE, 
-        "========= cpu =========\n"
+        "========= system =========\n"
+        "kernel version: %s %s %s\n"
+        "uptime: %lu.%02lu\n"
+        "========== cpu ==========\n"
         "vender id: %s\n"
         "cpu family: %u\n"
         "model: %s\n"
-        //"cpu MHz: %u.%03u\n"
+        "cpu MHz: %u.%03u\n"
         "cache size: %u KB\n"
         "core id: %u\n"
         "cpu cores: %u\n"
@@ -65,10 +76,15 @@ static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, l
         "MemFree: %lu\n"
         "MemUsed: %lu\n"
         "",
+        utsname()->sysname,
+        utsname()->release,
+		utsname()->version,
+        (unsigned long) uptime.tv_sec,
+		(uptime.tv_nsec / (NSEC_PER_SEC / 100)),
         c->x86_vendor_id,
         c->x86,
         c->x86_model_id,
-        //freq / 1000, (freq % 1000),
+        freq / 1000, (freq % 1000),
         c->x86_cache_size,
         c->cpu_core_id,
         c->x86_max_cores,
@@ -77,13 +93,12 @@ static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, l
         pagenum_to_KB(mem_info.totalram - mem_info.freeram)
     );
 
+    if (count > BUF_SIZE) count = BUF_SIZE-1;
+    copy_to_user(_buf, buffer, count);
+
     printk("read my device\n");
 
-    if (count > BUF_SIZE) count = BUF_SIZE-1;
-    copy_to_user(_buf, buffer, size+1);
-
-    printk("%s\n", _buf);
-    return 0;
+    return count;
 }
 
 static ssize_t mydevice_write(struct file *fp, const char __user *_buf, size_t count, loff_t *f_pos) {
