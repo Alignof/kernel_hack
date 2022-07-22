@@ -1,10 +1,9 @@
 # tutorial
-## host
+## vm
 ```.sh
 $ make
 $ make load
-$ gcc call_mydevice.c
-$ ./a.out
+$ cat /proc/MyProcFs
 $ make unload
 ```
 

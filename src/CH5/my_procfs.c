@@ -7,13 +7,14 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/utsname.h>
+#include <linux/kallsyms.h>
+#include <linux/kprobes.h>
 #include <linux/time_namespace.h>
 #include <asm/page_types.h>
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 
 #include "my_procfs.h"
-#include "/home/tsukubataro/kernel_hack/linux-5.17.1/arch/x86/kernel/cpu/cpu.h"
 
 #define pagenum_to_KB(x) ((x) << (PAGE_SHIFT - 10))
 #define DRIVER_NAME "MyDevice"
@@ -25,6 +26,7 @@ static unsigned int major_num;
 
 MODULE_LICENSE("Dual BSD/GPL");
 
+
 static int mydevice_open(struct inode *inode, struct file *fp) {
     printk("open my device\n");
     return 0;
@@ -32,7 +34,6 @@ static int mydevice_open(struct inode *inode, struct file *fp) {
 
 static int mydevice_close(struct inode *inode, struct file *fp) {
     printk("close my device\n");
-
     return 0;
 }
 
@@ -40,15 +41,23 @@ static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, l
     const int cpu_id = 0;
     struct cpuinfo_x86 *c = &cpu_data(cpu_id);
 
-    unsigned int freq = cpufreq_quick_get(cpu_id);
-    /*
+    unsigned int freq = 0;
+    typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+    kallsyms_lookup_name_t kallsyms_lookup_name;
+    static struct kprobe kp = {
+       .symbol_name = "kallsyms_lookup_name"
+    };
+    register_kprobe(&kp);
+    kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
+    unregister_kprobe(&kp);
+    unsigned int (*aperfmperf_get_khz)(int) = kallsyms_lookup_name("aperfmperf_get_khz");
+ 
     if (cpu_has(c, X86_FEATURE_TSC)) {
-        freq = aperfmperf_get_khz(cpu_id);
+        if (aperfmperf_get_khz != 0) freq = aperfmperf_get_khz(cpu_id);
 
         if (!freq) freq = cpufreq_quick_get(cpu_id);
         if (!freq) freq = cpu_khz;
     }
-    */
 
     struct sysinfo mem_info;
     si_meminfo(&mem_info);

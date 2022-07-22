@@ -6,8 +6,6 @@ struct parameter {
     int value2;
 };
 
-unsigned int aperfmperf_get_khz(int cpu);
-
 #define MYDEVICE_IOC_TYPE 'X'
 #define MYDEVICE_SET_VALUES _IOW(MYDEVICE_IOC_TYPE, 1, struct parameter)
 #define MYDEVICE_GET_VALUES _IOR(MYDEVICE_IOC_TYPE, 2, struct parameter)
