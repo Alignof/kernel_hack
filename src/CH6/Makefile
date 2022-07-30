@@ -1,11 +1,10 @@
 obj-m := kthread_test.o
 
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+	make INCDIR=/usr/include -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
-	rm a.out
 
 load:
 	sudo insmod kthread_test.ko
