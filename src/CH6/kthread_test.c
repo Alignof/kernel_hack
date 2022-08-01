@@ -1,113 +1,100 @@
-//#include <curl/curl.h>
-#include "/usr/include/x86_64-linux-gnu/curl/curl.h"
-#include "jansson.h"
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/file.h>
-#include <linux/fileattr.h>
-
-
-#define APIKEY "3a3c618b4b1b4733be25043f17ee86a7"
+#include <linux/in.h>
+#include <linux/inet.h>
+#include <linux/socket.h>
+#include <linux/tls.h>
+#include <net/sock.h>
+#include <linux/init.h>
+#define BUFFER_SIZE 1024
 
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct task_struct *k;
 
-struct MemFile {
-    char* data;
-    size_t size;
-};
+static int kthread_main(void) {
+    struct socket *sock;
+    struct sockaddr_in s_addr;
+    unsigned short port_num = 80;
+    int ret = 0;
+    char *send_buf = NULL;
+    char *recv_buf = NULL;
+    struct kvec send_vec, recv_vec;
+    struct msghdr send_msg, recv_msg;
 
-struct MemFile* memfopen() {
-    struct MemFile* mf = (struct MemFile*) malloc(sizeof(struct MemFile));
-    if (mf) {
-        mf->data = NULL;
-        mf->size = 0;
+    /* kmalloc a send buffer*/
+    send_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+    if (send_buf == NULL) {
+        printk("client: send_buf kmalloc error!\n");
+        return -1;
     }
 
-    return mf;
-}
-
-void memfclose(struct MemFile* mf) {
-    if (mf->data) free(mf->data);
-    free(mf);
-}
-
-size_t memfwrite(char* ptr, size_t size, size_t nmemb, void* stream) {
-    struct MemFile* mf = (struct MemFile*) stream;
-    int block = size * nmemb;
-    if (!mf) return block; // through
-
-    if (!mf->data) {
-        mf->data = (char*) malloc(block);
-    } else {
-        mf->data = (char*) realloc(mf->data, mf->size + block);
+    /* kmalloc a receive buffer*/
+    recv_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+    if(recv_buf == NULL){
+        printk("client: recv_buf kmalloc error!\n");
+        return -1;
     }
+    memset(&s_addr, 0, sizeof(s_addr));
+    s_addr.sin_family = AF_INET;
+    s_addr.sin_port = htons(port_num);
+    s_addr.sin_addr.s_addr = in_aton("52.73.174.144");
+    sock = (struct socket *)kmalloc(sizeof(struct socket), GFP_KERNEL);
 
-    if (mf->data) {
-        memcpy(mf->data + mf->size, ptr, block);
-        mf->size += block;
+    ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    if (ret < 0) {
+        printk("client:socket create error!\n");
+        return ret;
+    } printk("client: socket create ok!\n");
+
+    ret = sock->ops->connect(sock, (struct sockaddr *)&s_addr, sizeof(s_addr), 0);
+    if (ret != 0) {
+        printk("client: connect error!\n");
+        return ret;
     }
-
-    return block;
-}
-
-char* memfstrdup(struct MemFile* mf) {
-    if (mf->size == 0) return NULL;
-
-    char* buf = (char*) malloc(mf->size + 1);
-    memcpy(buf, mf->data, mf->size);
-    buf[mf->size] = 0;
-
-    return buf;
-}
-
-static void kthread_main(void) {
-    ssleep(120);
-    CURLcode res;
-
-    struct MemFile *mf = memfopen();
-    CURL *curl = curl_easy_init();
-    if(curl) {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-        curl_easy_setopt(
-            curl,
-            CURLOPT_URL,
-            "https://api.currencyfreaks.com/latest?apikey="
-            APIKEY
-            "&symbols=JPY"
-        );
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, mf);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, memfwrite);
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
-        struct curl_slist *headers = NULL;
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        res = curl_easy_perform(curl);
-    }
-    curl_easy_cleanup(curl);
-
-    char* js = memfstrdup(mf);
-    memfclose(mf);
-    json_error_t error;
-    json_t *result = json_loads(js, 0, &error);
-
-    if (result == NULL) {
-        fputs(error.text, stderr);
-        free(js);
-        return 0;
-    }
-
-    json_t *rates = json_object_get(result, "rates");
-    printk(
-        "1USD = %sJPY\n",
-        json_string_value(json_object_get(rates, "JPY"))
+    printk("client: connect ok!\n");
+    memset(send_buf, 0, BUFFER_SIZE);
+    snprintf(
+        send_buf,
+        BUFFER_SIZE,
+        "GET /api/latest.json?app_id=9d0f0bc518774cdb861e50a742964ad5&symbols=JPY HTTP/1.1\r\n"
+        "Host: 52.73.174.144\r\n"
+        "\r\n"
     );
-    json_decref(result);
+    memset(&send_msg, 0, sizeof(send_msg));
+    memset(&send_vec, 0, sizeof(send_vec));
 
-    free(js);
+    send_vec.iov_base = send_buf;
+    send_vec.iov_len = BUFFER_SIZE;
+
+    ret = kernel_sendmsg(sock, &send_msg, &send_vec, 1, BUFFER_SIZE);
+    if (ret < 0) {
+        printk("client: kernel_sendmsg error!\n");
+        return ret;
+    } else if(ret != BUFFER_SIZE){
+        printk("client: ret!=BUFFER_SIZE");
+    }
+    printk("client: send ok!\n");
+
+    memset(recv_buf, 0, BUFFER_SIZE);
+    memset(&recv_vec, 0, sizeof(recv_vec));
+    memset(&recv_msg, 0, sizeof(recv_msg));
+    recv_vec.iov_base = recv_buf;
+    recv_vec.iov_len = BUFFER_SIZE;
+
+    ret = kernel_recvmsg(sock, &recv_msg, &recv_vec, 1, BUFFER_SIZE, 0);
+    char *jpy = NULL;
+    if (jpy = strstr(recv_buf, "\"JPY\": ")) {
+        jpy += sizeof("\"JPY\": ")-1;
+    }
+    printk("client: received message:\n%.*s\n", 8, jpy);
+
+    kernel_sock_shutdown(sock, SHUT_RDWR);
+    sock_release(sock);
+    return 0;
 }
 
 static int kthread_function(void* arg) {
@@ -115,6 +102,7 @@ static int kthread_function(void* arg) {
 
     while (!kthread_should_stop()) {
         kthread_main();
+        ssleep(300);
     }
 
     printk(KERN_INFO "[%s] stop kthread\n", k->comm);
