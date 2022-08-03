@@ -7,27 +7,70 @@
 \include{titlepage}
 
 \chapter{カーネルのコンパイルとパラメタの設定}
-パラメタの設定にはmenuconfigを用いた．
+この章では課題1で行った作業について説明する．
+
+\section{configの生成と編集}
+configの生成にはdefconfigをパラメタの設定にはmenuconfigを用いた．
+
 \begin{quote}
+\$ make defconfig
 \$ make menuconfig
 \end{quote}
-と叩くとTUIで余分なモジュールを無効にできるのでNetworkやVirtualization内にある不要そうなドライバやモジュールを無効化した．
+defconfigはmenuconfigに比べて最小限の設定しか生成しないため，まずdefconfigを用いて軽量な設定ファイルを作ってから
+menuconfigを使ってTUIでNetworkやVirtualization内にある不要そうなドライバやモジュールを無効化し，更に設定を削った．
+defconfigよりも小さな設定ファイルを生成するtinyconfigというオプションもあるが，これらはカーネルを起動させるのに追加で
+設定を足していく必要があるため今回は用いなかった．\footnote{設定は必要なものを足すより不要そうなものを削るほうが簡単だからである．}
+不要なオプションを削ることにより余計なモジュールのbuildにかかる時間を削減できるため結果的に高速にbuildが可能である．
+
+高速化のための設定の見直しだけでなくこの左記で必要な項目の設定も行った．
+まずTUI経由でカーネルのデバッグ情報を有効化した．
+これによりデバッグ情報が付加されてデバッガでコードが追えるようになる．
+他にFIle systemsのRoot file system on NFSを無効化しExt4のファイルシステムが有効になっているかを確認した．
+
+更に2章でgdbを使ってカーネルのデバッグをするためカーネルイメージのアドレスのランダム化のオプションを切っておく．
+この操作はTUIを使わずにソースのルートディレクトリ直下にある.configを直接編集してCONFIG_RANDOMIZE_BASEを無効化し，
+CONFIG_DEBUG_INFOを有効化した．
 
 % ここに行数などのdiffの比較を置く
 
-ビルド中の認証を回避するために以下のコマンドを実行した．
+\section{ビルドの準備と実行}
+ビルドする前に準備としてターミナル上で以下のコマンドを実行した．
 \begin{quote}
 \$ ./scripts/config --disable SYSTEM_TRUSTED_KEYS
 \$ ./scripts/config --disable SYSTEM_REVOCATION_KEYS
 \$ ./scripts/config --disable MODULE_SIG_KEY
 \end{quote}
-これらの設定項目はビルドするコードが
+これらの設定はビルド中の認証を回避するためのものである．
 
+ビルドに必要な設定がすべて完了したのでビルドを行う．
+今回ホストは以下に示すようにubuntuなので，
+\begin{quote}
+\$ uname -a
+Linux kh-ubuntu 5.15.0-41-generic #44~20.04.1-Ubuntu SMP Fri Jun 24 13:27:29 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+\end{quote}
+
+debianパッケージ経由でインストールできるようにbindev-pkgを引数に渡して実行する．
+また，パッケージ名から内容を区別できるようにKDEB_PKGVERSIONという変数名をmakeに渡して命名を行う．
+これは複数回施行したときにバックアップを取った際の混乱を避けるためである．
+\begin{quote}
+\$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-DisableRandomizeBase
+\end{quote}
+
+makeに-j8というオプションをつけることで8ジョブで並列に処理ができ更にビルドを高速化することができる．
+
+ビルドが終わったらVMwareでゲストOSを立ち上げインストールを行う．
+\begin{quote}
+\$ cd kernel_hack/
+\$ dpkg --install *.deb
+\$ uname -a
+Linux ubuntu 5.17.1 #2 SMP PREEMPT Thu Apr 21 19:27:13 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+\end{quote}
+
+インストールしたら再起動してunameでカーネルのバージョンを表示する．
+期待していたカーネルをインストールして起動できることが確認できた．
 
 
 \chapter{カーネルのリモート・デバッグ}
-また，課題2でカーネルのリモートデバッグを有効にするために.configを直接編集してCONFIG_RANDOMIZE_BASEを無効化し，CONFIG_DEBUG_INFOを有効化した．
-これによりデバッグ情報が付加されてデバッガでコードが追えるようになり，
 
 \chapter{システムコールの追加}
 

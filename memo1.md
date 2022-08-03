@@ -2,6 +2,7 @@
 host
 ```.sh
 $ cd kernel_hack/linux-5.17.1/
+$ make defconfig
 $ make menuconfig
 $ vim .config (CONFIG_RANDOMIZE_BASE=n)
 $ ./scripts/config --disable SYSTEM_TRUSTED_KEYS
