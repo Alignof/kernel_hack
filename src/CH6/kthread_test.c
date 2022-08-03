@@ -48,14 +48,13 @@ static int kthread_main(void) {
     if (ret < 0) {
         printk("client:socket create error!\n");
         return ret;
-    } printk("client: socket create ok!\n");
+    } 
 
     ret = sock->ops->connect(sock, (struct sockaddr *)&s_addr, sizeof(s_addr), 0);
     if (ret != 0) {
         printk("client: connect error!\n");
         return ret;
     }
-    printk("client: connect ok!\n");
     memset(send_buf, 0, BUFFER_SIZE);
     snprintf(
         send_buf,
@@ -77,7 +76,6 @@ static int kthread_main(void) {
     } else if(ret != BUFFER_SIZE){
         printk("client: ret!=BUFFER_SIZE");
     }
-    printk("client: send ok!\n");
 
     memset(recv_buf, 0, BUFFER_SIZE);
     memset(&recv_vec, 0, sizeof(recv_vec));
@@ -90,10 +88,12 @@ static int kthread_main(void) {
     if (jpy = strstr(recv_buf, "\"JPY\": ")) {
         jpy += sizeof("\"JPY\": ")-1;
     }
-    printk("client: received message:\n%.*s\n", 8, jpy);
+    printk("1USD = %.*sJPY\n", 8, jpy);
 
     kernel_sock_shutdown(sock, SHUT_RDWR);
     sock_release(sock);
+
+    ssleep(300);
     return 0;
 }
 
@@ -102,7 +102,6 @@ static int kthread_function(void* arg) {
 
     while (!kthread_should_stop()) {
         kthread_main();
-        ssleep(300);
     }
 
     printk(KERN_INFO "[%s] stop kthread\n", k->comm);
