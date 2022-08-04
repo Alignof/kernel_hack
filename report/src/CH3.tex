@@ -15,7 +15,7 @@ NAME
        median - get a median
 
 SYNOPSIS
-       #include <unistd.h>
+       \#include <unistd.h>
 
        int median(int *array, const int size, int *result);
 
@@ -44,7 +44,7 @@ ERRORS
 
 上記の仕様に沿って作成したシステムコールをリスト\ref{lst:median}に示す．
 \begin{longlisting}
-\begin{myminted}{c}{my_syscall.c}
+\begin{myminted}{c}{my\_syscall.c}
 #include <linux/syscalls.h>
 
 #define	EFAULT 14	/* Bad address */
@@ -118,22 +118,22 @@ SYSCALL_DEFINE3(median,
 \label{lst:median}
 \end{longlisting}
 
-まず，SYSCALL_DEFINE3というマクロを使ってシステムコールの定義を登録する．
-今回は引数が3つあるのでSYSCALL_DEFINE3を用いている．
+まず，SYSCALL\_DEFINE3というマクロを使ってシステムコールの定義を登録する．
+今回は引数が3つあるのでSYSCALL\_DEFINE3を用いている．
 このマクロでは引数と引数の型をカンマで区切る必要があり，またユーザ空間のポインタであることを示すために
-__userをつけてポインタの型を表現している．
+\_\_userをつけてポインタの型を表現している．
 
-SYSCALL_DEFINE3のreturnの部分で本体に当たるdo_medianを呼び出す．
+SYSCALL\_DEFINE3のreturnの部分で本体に当たるdo\_medianを呼び出す．
 これは2章でrmdirの流れを追ったときと同じ流れである．
-do_medianではまず引数のチェックを行い実行が不可能な場合はエラーを返して終了する．
-そうでない場合はまずユーザ空間のデータをカーネル空間のデータにcopy_from_userを使って安全にコピーする．
+do\_medianではまず引数のチェックを行い実行が不可能な場合はエラーを返して終了する．
+そうでない場合はまずユーザ空間のデータをカーネル空間のデータにcopy\_from\_userを使って安全にコピーする．
 カーネル空間からユーザ空間のポインタを触るのは危険なので一度カーネル空間のメモリにコピーして操作をしてから書き戻す．
 これに失敗した場合もエラーを返して終了する．
 
 次に中央値を得るためにソートする．
 この操作はユーザ空間のプログラムと変わらない普通の関数である．
 そしてsizeを2で割った要素にアクセスして中央値を得る．
-これをcopy_to_userを使って安全にユーザ空間のアドレスに書き戻す．
+これをcopy\_to\_userを使って安全にユーザ空間のアドレスに書き戻す．
 成功した場合には0を返して終了する．
 以上が処理の流れである．
 
@@ -141,34 +141,34 @@ do_medianではまず引数のチェックを行い実行が不可能な場合�
 システムコールはカーネルのソースコードを改変する形で組み込むので1度カーネルをビルドし直す必要がある．
 以下の操作でビルドを行った．（カッコ内は修正内容）
 \begin{quote}
-\$ cd ~/kernel_hack/linux-5.17.1/arch/x86/kernel
-\$ cp ~/kernel_hack/myrepo/src/CH3/my_syscall.c  ./median.c
-\$ vim ~/kernel_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59)
-\$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys_median( int __user *array, const int size, float __user *result);" to line 1000)
-\$ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336 common  median         sys_median")
-\$ cd ~/kernel_hack/linux-5.17.1/
-\$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddMedian
+\$ cd ~/kernel\_hack/linux-5.17.1/arch/x86/kernel
+\$ cp ~/kernel\_hack/myrepo/src/CH3/my\_syscall.c  ./median.c
+\$ vim ~/kernel\_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59)
+\$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys\_median( int \_\_user *array, const int size, float \_\_user *result);" to line 1000)
+\$ vim ../../../arch/x86/entry/syscalls/syscall\_64.tbl (add "336 common  median         sys\_median")
+\$ cd ~/kernel\_hack/linux-5.17.1/
+\$ make -j8 bindeb-pkg  KDEB\_PKGVERSION=5.17.1-AddMedian
 \end{quote}
 
 まず，リスト\ref{lst:syscallspec}で示したプログラムを/arch/x86/kernelにコピーする．
 次にリンクできるように対象となるmedian.oをターゲットに追加する．
-またsyscalls.hを編集して関数定義を登録し，syscall_64.tblにシステムコールの番号と名前，関数を登録する．
+またsyscalls.hを編集して関数定義を登録し，syscall\_64.tblにシステムコールの番号と名前，関数を登録する．
 準備ができたら1章と同様の手順でビルドする．
 
 次にゲストOSに移動し1章と同様の手順でインストールを行う．
 \begin{quote}
-\$ cd kernel_hack/
+\$ cd kernel\_hack/
 \$ sudo dpkg -r linux-image-5.17.1
 \$ sudo dpkg -r linux-image-5.17.1-dbg
 \$ sudo dpkg --install *AddMedian*.deb
 \$ uname -a
-Linux ubuntu 5.17.1 #AddMedian SMP PREEMPT Sat May 28 00:35:01 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+Linux ubuntu 5.17.1 \#AddMedian SMP PREEMPT Sat May 28 00:35:01 JST 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
 インストールしてOSが起動することを確認できたら実際にシステムコールを呼び出して動作を検証する．
 システムコールを呼ぶプログラムをリスト\ref{lst:callmadian},\ref{lst:callmadianh}に示す．
 \begin{longlisting}
-\begin{myminted}{c}{call_median.c}
+\begin{myminted}{c}{call\_median.c}
 #include <stdio.h>
 #include "call_median.h"
 
@@ -186,7 +186,7 @@ int main(void) {
 \end{longlisting}
 
 \begin{longlisting}
-\begin{myminted}{c}{call_median.h}
+\begin{myminted}{c}{call\_median.h}
 #ifndef __LINUX_NEW_SYSCALL_H
 #define __LINUX_NEW_SYSCALL_H
 #include "unistd_64.h"
@@ -194,24 +194,24 @@ int main(void) {
 #include <asm/unistd.h>
 #endif
 \end{myminted}
-\caption{call_median.h}
+\caption{call\_median.h}
 \label{lst:callmedianh}
 \end{longlisting}
 
 syscall関数を使って任意のシステムコールを呼び出すことができるのでそれを利用する．
-第1引数の__NR_medianはマクロで実際にはlong型の番号が割り当てられている．\cite{unistd32}
-リスト\ref{lst:callmedianh}で示したcall_median.hではシステムコールに必要なマクロなどを参照している．
+第1引数の\_\_NR\_medianはマクロで実際にはlong型の番号が割り当てられている．\cite{unistd32}
+リスト\ref{lst:callmedianh}で示したcall\_median.hではシステムコールに必要なマクロなどを参照している．
 実行の流れを以下に示す．
 
 \begin{quote}
 \$ cd ~/tmp/CH3
-\$ cp ~/kernel_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd_64.h .
-\$ cp ~/kernel_hack/my_repo/src/CH3/call_median* .
-\$ gcc call_median.c -o CallMedian
+\$ cp ~/kernel\_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd\_64.h .
+\$ cp ~/kernel\_hack/my\_repo/src/CH3/call\_median* .
+\$ gcc call\_median.c -o CallMedian
 \$ ./CallMedian
 \end{quote}
 
-call_median.hで参照するunistd_64.h事前にをコピーしている．
+call\_median.hで参照するunistd\_64.h事前にをコピーしている．
 
 \section{システムコールの動作確認}
 

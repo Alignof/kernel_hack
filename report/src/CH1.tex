@@ -20,17 +20,17 @@ defconfigよりも小さな設定ファイルを生成するtinyconfigという�
 他にFIle systemsのRoot file system on NFSを無効化しExt4のファイルシステムが有効になっているかを確認した．
 
 更に2章でgdbを使ってカーネルのデバッグをするためカーネルイメージのアドレスのランダム化のオプションを切っておく．
-この操作はTUIを使わずにソースのルートディレクトリ直下にある.configを直接編集してCONFIG_RANDOMIZE_BASEを無効化し，
-CONFIG_DEBUG_INFOを有効化した．
+この操作はTUIを使わずにソースのルートディレクトリ直下にある.configを直接編集してCONFIG\_RANDOMIZE\_BASEを無効化し，
+CONFIG\_DEBUG\_INFOを有効化した．
 
 % ここに行数などのdiffの比較を置く
 
 \section{ビルドの準備と実行}
 ビルドする前に準備としてターミナル上で以下のコマンドを実行した．
 \begin{quote}
-\$ ./scripts/config --disable SYSTEM_TRUSTED_KEYS
-\$ ./scripts/config --disable SYSTEM_REVOCATION_KEYS
-\$ ./scripts/config --disable MODULE_SIG_KEY
+\$ ./scripts/config --disable SYSTEM\_TRUSTED\_KEYS
+\$ ./scripts/config --disable SYSTEM\_REVOCATION\_KEYS
+\$ ./scripts/config --disable MODULE\_SIG\_KEY
 \end{quote}
 これらの設定はビルド中の認証を回避するためのものである．
 
@@ -38,24 +38,24 @@ CONFIG_DEBUG_INFOを有効化した．
 今回ホストは以下に示すようにubuntuなので，
 \begin{quote}
 \$ uname -a
-Linux kh-ubuntu 5.15.0-41-generic #44~20.04.1-Ubuntu SMP Fri Jun 24 13:27:29 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+Linux kh-ubuntu 5.15.0-41-generic \#44~20.04.1-Ubuntu SMP Fri Jun 24 13:27:29 UTC 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
 debianパッケージ経由でインストールできるようにbindev-pkgを引数に渡して実行する．
-また，パッケージ名から内容を区別できるようにKDEB_PKGVERSIONという変数名をmakeに渡して命名を行う．
+また，パッケージ名から内容を区別できるようにKDEB\_PKGVERSIONという変数名をmakeに渡して命名を行う．
 これは複数回施行したときにバックアップを取った際の混乱を避けるためである．
 \begin{quote}
-\$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-DisableRandomizeBase
+\$ make -j8 bindeb-pkg  KDEB\_PKGVERSION=5.17.1-DisableRandomizeBase
 \end{quote}
 
 makeに-j8というオプションをつけることで8ジョブで並列に処理ができ更にビルドを高速化することができる．
 
 ビルドが終わったらVMwareでゲストOSを立ち上げインストールを行う．
 \begin{quote}
-\$ cd kernel_hack/
+\$ cd kernel\_hack/
 \$ dpkg --install *.deb
 \$ uname -a
-Linux ubuntu 5.17.1 #2 SMP PREEMPT Thu Apr 21 19:27:13 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+Linux ubuntu 5.17.1 \#2 SMP PREEMPT Thu Apr 21 19:27:13 JST 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
 インストールしたら再起動してunameでカーネルのバージョンを表示する．

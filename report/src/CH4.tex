@@ -7,7 +7,7 @@
 
 作成したデバイス・ドライバのソースコードとヘッダをリスト\ref{lst:chdev},\ref{lst:chdevh}に示す．
 \begin{longlisting}
-\begin{myminted}{c}{my_chdev.c}
+\begin{myminted}{c}{my\_chdev.c}
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -155,7 +155,7 @@ module_exit(mydevice_exit);
 
 
 \begin{longlisting}
-\begin{myminted}{c}{my_chdev.h}
+\begin{myminted}{c}{my\_chdev.h}
 #pragma once
 #include <linux/ioctl.h>
 
@@ -169,35 +169,35 @@ struct parameter {
 #define MYDEVICE_GET_VALUES _IOR(MYDEVICE_IOC_TYPE, 2, struct parameter)
 #define MYDEVICE_SWAP_VALUES _IOR(MYDEVICE_IOC_TYPE, 3, struct parameter)
 \end{myminted}
-\caption{my_chdev.h}
+\caption{my\_chdev.h}
 \label{lst:chdevh}
 \end{longlisting}
 
-まずmodule_initマクロとmodule_exitマクロを使ってload時とunload時に呼ばれる関数を登録する．
-次にfile_operations構造体を定義してopen, release, read, write にそれぞれ呼ばれる関数のポインタを登録する．
-また，unlocked_ioctlにioctlの操作を定義する関数のポインタを登録する．
+まずmodule\_initマクロとmodule\_exitマクロを使ってload時とunload時に呼ばれる関数を登録する．
+次にfile\_operations構造体を定義してopen, release, read, write にそれぞれ呼ばれる関数のポインタを登録する．
+また，unlocked\_ioctlにioctlの操作を定義する関数のポインタを登録する．
 このようにすることで各動作時の振る舞いを簡単に定義することができる．
 
 各関数の処理について説明する．
-まず，mydevice_initではキャラクタデバイスの登録をしている．
-alloc_chrdev_region関数を用いてメジャー番号とマイナー番号，ドライバの名前などを登録し，cdev_init関数で初期化，
-cdev_addで登録を行う．
-mydevice_exitでは逆にcdev_delで削除を行い，unregister_chrdev_regionで登録も取り消す．
+まず，mydevice\_initではキャラクタデバイスの登録をしている．
+alloc\_chrdev\_region関数を用いてメジャー番号とマイナー番号，ドライバの名前などを登録し，cdev\_init関数で初期化，
+cdev\_addで登録を行う．
+mydevice\_exitでは逆にcdev\_delで削除を行い，unregister\_chrdev\_regionで登録も取り消す．
 
-mydevice_openではファイルポインタのprivate_dataにioctlのためのデータ領域を確保する．
+mydevice\_openではファイルポインタのprivate\_dataにioctlのためのデータ領域を確保する．
 グローバル変数に領域を確保しても良いが，その場合同時に複数キャラクタデバイスにアクセスがあったときにデータが1つしか
 存在できないので競合が起きてしまう．
 ファイルポインタの領域にkmallocを使って確保することで複数の接続でもそれぞれで専用のデータ領域を確保できる．
-mydevice_closeではopenで確保した領域を確保している．
+mydevice\_closeではopenで確保した領域を確保している．
 
-mydevice_readではファイルポインタに保存しているデータをユーザにコピーしてる．
-この際copy_to_userを用いて安全にユーザ空間のデータをカーネル空間に持ち込んでいる．
-mydevice_writeではreadの逆で，ユーザ空間からのデータをファイルポインタに確保している空間にコピーしている．
+mydevice\_readではファイルポインタに保存しているデータをユーザにコピーしてる．
+この際copy\_to\_userを用いて安全にユーザ空間のデータをカーネル空間に持ち込んでいる．
+mydevice\_writeではreadの逆で，ユーザ空間からのデータをファイルポインタに確保している空間にコピーしている．
 
-mydevice_ioctlではコマンドを受け取って実行する部分の処理を実装している．
-MYDEVIDE_SET_VALUESでは構造体parameterを受け取ってデータ領域に値をセットする．
-MYDEVICE_GET_VALUESでは保存されていた値をargに代入して返す．
-MYDEVICE_SWAP_VALUESは構造体parameterに2つあるデータを交換する．
+mydevice\_ioctlではコマンドを受け取って実行する部分の処理を実装している．
+MYDEVIDE\_SET\_VALUESでは構造体parameterを受け取ってデータ領域に値をセットする．
+MYDEVICE\_GET\_VALUESでは保存されていた値をargに代入して返す．
+MYDEVICE\_SWAP\_VALUESは構造体parameterに2つあるデータを交換する．
 
 \section{キャラクタデバイスの動作確認}
 上記の実装が正しく動作しているかを検証する．
@@ -237,14 +237,14 @@ unload:
 \begin{quote}
 \$ make
 \$ make load
-\$ gcc call_mydevice.c
+\$ gcc call\_mydevice.c
 \$ ./a.out
 \$ make unload
 \end{quote}
 
 作成したキャラクタデバイスを開いて操作するプログラムをリスト\ref{lst:callchdev}に示す．
 \begin{longlisting}
-\begin{myminted}{c}{call_mydevice.c}
+\begin{myminted}{c}{call\_mydevice.c}
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>

@@ -22,7 +22,7 @@
 複数のデバイスの情報をまとめて表示するにあたってcpuやメモリの情報をカーネル内の構造体から直接取得した．
 実装をリスト\ref{lst:proc}に示す．
 \begin{longlisting}
-\begin{myminted}{c}{my_procfs.c}
+\begin{myminted}{c}{my\_procfs.c}
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -194,21 +194,23 @@ module_exit(mydevice_exit);
 \label{lst:proc}
 \end{longlisting}
 
-基本的にmodule_initやmodule_exitでモジュールの初期化と終了時の関数を設定すること，構造体に関数ポインタを渡してopen, release, read, write
+基本的にmodule\_initやmodule\_exitでモジュールの初期化と終了時の関数を設定すること，構造体に関数ポインタを渡してopen, release, read, write
 時の動作を定義することは4章と同じである．
 5章では読み込みのみ対応すれば良いとのことなのでwrite関数については実装を省略している．
 以下，それぞれのデバイスのデータの取得について説明する．
 
 \subsection{kernel version}
-カーネルのバージョンはutsnameという関数からnew_utsnameという構造体を経由して簡単に参照することができる．\cite{utsname}
+カーネルのバージョンはutsnameという関数からnew\_utsnameという構造体を経由して簡単に参照することができる．\cite{utsname}
 定義自体もinclude可能なヘッダに存在するので呼び出すだけで簡単に参照することができる．
 バージョン名はsysnameとreleaseとversionに分かれている．
 
 \subsection{uptime}
 uptimeはtimespec64という構造体の中に格納されるものであると分かった．\cite{timespec64}
-まずktime_get_boottime_ts64\footenote{マクロでns_to_timespec64に置き換わっている}でuptimeに起動時間を格納する．
-更にtimens_add_boottimeでbootにかかった時間を足している．\cite{time_add}
+まずktime\_get\_boottime\_ts64\footnote{マクロでns\_to\_timespec64に置き換わっている}でuptimeに起動時間を格納する．
+更にtimens\_add\_boottimeでbootにかかった時間を足している．\cite{time_add}
+
+\subsection{cpu}
 
 \subsection{memory}
-メモリに関する情報は構造体sysinfoを通してsi_meminfoから取得可能である．\cite{meminfo}
+メモリに関する情報は構造体sysinfoを通してsi\_meminfoから取得可能である．\cite{meminfo}
 構造体sysinfoにはメモリに関する情報がきれいに全部入っているのでこのまま使用可能である．
