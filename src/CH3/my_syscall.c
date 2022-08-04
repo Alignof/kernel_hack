@@ -1,7 +1,8 @@
 #include <linux/syscalls.h>
 
-#define	EFAULT		14	/* Bad address */
-#define	EINVAL		22	/* Invalid argument */
+#define	EFAULT 14	/* Bad address */
+#define	EINVAL 22	/* Invalid argument */
+#define BUFFERSIZE 100
 
 void myswap (int *x, int *y) {
     int tmp;
@@ -38,11 +39,12 @@ void quick_sort (int *array, int left, int right) {
 }
 
 int do_median(int __user *_array, const int size, int __user *_result) {
-    int array[100] = {0};
+    int array[BUFFERSIZE] = {0};
     int result = 0;
 
     printk("syscall median start.");
     if (size <= 0) return EINVAL;
+    if (size > BUFFERSIZE) return EINVAL;
     if (copy_from_user(array, _array, sizeof(int) * size) > 0) return EFAULT;
     if (copy_from_user(&result, _result, sizeof(int)) > 0) return EFAULT;
 
