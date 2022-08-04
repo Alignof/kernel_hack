@@ -1,0 +1,218 @@
+\chapter{システムコールの追加}
+本章では課題3のシステムコールの追加について説明する．
+今回は配列の中央値を返すシステムコールを実装した．
+
+\section{システムコールの実装}
+まず，今回実装したシステムコールの概要について述べる．
+今回実装したのはmedianという与えられたint型配列の中央値を求めるシステムコールである．
+配列のポインタと配列のサイズ，結果を格納する変数のポインタを受け取り結果を変数のポインタに格納して終了する．
+
+詳しい仕様をmanの形式に倣って以下に示す．
+\begin{longlisting}
+\begin{myminted}{sh}{}
+\$ man 2 median
+NAME
+       median - get a median
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int median(int *array, const int size, int *result);
+
+DESCRIPTION
+       median()は配列の中央値を取得する．配列はint型でなくてはならない．
+       配列の要素数が奇数の場合，ソートされた配列のちょうど真ん中の値がresultにセットされる．
+       配列の要素数が偶数の場合，ソートされた配列の真ん中2つの値のうち大きなものが取られる．
+
+RETURN VALUE
+       成功した場合，0が返される．
+       失敗した場合は下に示すERRORSの値が返される．
+
+ERRORS
+       EINVAL 配列のサイズが0以下の場合，引数が不正なので中央値を求めずに終了する．
+            　resultには何もセットされない．
+       EFAULT カーネル内で配列のコピーに失敗した場合，処理が行えないため異常終了する．
+              配列のサイズが大きすぎる場合などに発生する．
+            　resultには何もセットされない．
+\end{myminted}
+\caption{medianの仕様}
+\label{lst:syscallspec}
+\end{longlisting}
+
+注意点として配列の要素数が偶数の場合，ソートされた配列の真ん中2つの値のうち大きなものが取られる．
+通常は中央に近い2つの値の平均を取るが，カーネル空間では浮動小数点が使えないので今回はこのような仕様にした．
+
+上記の仕様に沿って作成したシステムコールをリスト\ref{lst:median}に示す．
+\begin{longlisting}
+\begin{myminted}{c}{my_syscall.c}
+#include <linux/syscalls.h>
+
+#define	EFAULT 14	/* Bad address */
+#define	EINVAL 22	/* Invalid argument */
+#define BUFFERSIZE 100
+
+void myswap (int *x, int *y) {
+    int tmp;
+
+    tmp = *x;
+    *x = *y;
+    *y = tmp;
+}
+
+int partition (int *array, int left, int right) {
+    int i = left;
+    int j = right + 1;
+    int pivot = left;
+
+    do {
+        do { i++; } while (array[i] < array[pivot]);
+        do { j--; } while (array[pivot] < array[j]);
+        if (i < j) { myswap(&array[i], &array[j]); }
+    } while (i < j);
+
+    myswap(&array[pivot], &array[j]);
+
+    return j;
+}
+
+void quick_sort (int *array, int left, int right) {
+    int pivot;
+
+    if (left < right) {
+        pivot = partition(array, left, right);
+        quick_sort(array, left, pivot-1);
+        quick_sort(array, pivot+1, right);
+    }
+}
+
+int do_median(int __user *_array, const int size, int __user *_result) {
+    int array[BUFFERSIZE] = {0};
+    int result = 0;
+
+    printk("syscall median start.");
+    if (size <= 0) return EINVAL;
+    if (size > BUFFERSIZE) return EINVAL;
+    if (copy_from_user(array, _array, sizeof(int) * size) > 0) return EFAULT;
+    if (copy_from_user(&result, _result, sizeof(int)) > 0) return EFAULT;
+
+    quick_sort(array, 0, size-1);
+
+    result = array[size/2];
+
+    if (copy_to_user(_result, &result, sizeof(int)) > 0) return EFAULT;
+    
+    printk("syscall median done.");
+    return 0;
+}
+
+// https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4097
+SYSCALL_DEFINE3(median,
+        int __user *, _array,
+        const int, size,
+        int __user *, _result) {
+
+    return do_median(_array, size, _result);
+}
+\end{myminted}
+\caption{medianの実装}
+\label{lst:median}
+\end{longlisting}
+
+まず，SYSCALL_DEFINE3というマクロを使ってシステムコールの定義を登録する．
+今回は引数が3つあるのでSYSCALL_DEFINE3を用いている．
+このマクロでは引数と引数の型をカンマで区切る必要があり，またユーザ空間のポインタであることを示すために
+__userをつけてポインタの型を表現している．
+
+SYSCALL_DEFINE3のreturnの部分で本体に当たるdo_medianを呼び出す．
+これは2章でrmdirの流れを追ったときと同じ流れである．
+do_medianではまず引数のチェックを行い実行が不可能な場合はエラーを返して終了する．
+そうでない場合はまずユーザ空間のデータをカーネル空間のデータにcopy_from_userを使って安全にコピーする．
+カーネル空間からユーザ空間のポインタを触るのは危険なので一度カーネル空間のメモリにコピーして操作をしてから書き戻す．
+これに失敗した場合もエラーを返して終了する．
+
+次に中央値を得るためにソートする．
+この操作はユーザ空間のプログラムと変わらない普通の関数である．
+そしてsizeを2で割った要素にアクセスして中央値を得る．
+これをcopy_to_userを使って安全にユーザ空間のアドレスに書き戻す．
+成功した場合には0を返して終了する．
+以上が処理の流れである．
+
+\section{システムコールの呼び出し}
+システムコールはカーネルのソースコードを改変する形で組み込むので1度カーネルをビルドし直す必要がある．
+以下の操作でビルドを行った．（カッコ内は修正内容）
+\begin{quote}
+\$ cd ~/kernel_hack/linux-5.17.1/arch/x86/kernel
+\$ cp ~/kernel_hack/myrepo/src/CH3/my_syscall.c  ./median.c
+\$ vim ~/kernel_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59)
+\$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys_median( int __user *array, const int size, float __user *result);" to line 1000)
+\$ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336 common  median         sys_median")
+\$ cd ~/kernel_hack/linux-5.17.1/
+\$ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddMedian
+\end{quote}
+
+まず，リスト\ref{lst:syscallspec}で示したプログラムを/arch/x86/kernelにコピーする．
+次にリンクできるように対象となるmedian.oをターゲットに追加する．
+またsyscalls.hを編集して関数定義を登録し，syscall_64.tblにシステムコールの番号と名前，関数を登録する．
+準備ができたら1章と同様の手順でビルドする．
+
+次にゲストOSに移動し1章と同様の手順でインストールを行う．
+\begin{quote}
+\$ cd kernel_hack/
+\$ sudo dpkg -r linux-image-5.17.1
+\$ sudo dpkg -r linux-image-5.17.1-dbg
+\$ sudo dpkg --install *AddMedian*.deb
+\$ uname -a
+Linux ubuntu 5.17.1 #AddMedian SMP PREEMPT Sat May 28 00:35:01 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+\end{quote}
+
+インストールしてOSが起動することを確認できたら実際にシステムコールを呼び出して動作を検証する．
+システムコールを呼ぶプログラムをリスト\ref{lst:callmadian},\ref{lst:callmadianh}に示す．
+\begin{longlisting}
+\begin{myminted}{c}{call_median.c}
+#include <stdio.h>
+#include "call_median.h"
+
+int main(void) {
+    int array[7] = {6, 2, 7, 1, 3, 5, 4};
+    int result = 0;
+
+    syscall(__NR_median, array, 7, &result);
+    printf("syscall_median(array, 7, &result) -> %d\n", result);
+    return 0;
+}
+\end{myminted}
+\caption{medianを呼ぶプログラム}
+\label{lst:callmedian}
+\end{longlisting}
+
+\begin{longlisting}
+\begin{myminted}{c}{call_median.h}
+#ifndef __LINUX_NEW_SYSCALL_H
+#define __LINUX_NEW_SYSCALL_H
+#include "unistd_64.h"
+#include <unistd.h>
+#include <asm/unistd.h>
+#endif
+\end{myminted}
+\caption{call_median.h}
+\label{lst:callmedianh}
+\end{longlisting}
+
+syscall関数を使って任意のシステムコールを呼び出すことができるのでそれを利用する．
+第1引数の__NR_medianはマクロで実際にはlong型の番号が割り当てられている．\cite{unistd32}
+リスト\ref{lst:callmedianh}で示したcall_median.hではシステムコールに必要なマクロなどを参照している．
+実行の流れを以下に示す．
+
+\begin{quote}
+\$ cd ~/tmp/CH3
+\$ cp ~/kernel_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd_64.h .
+\$ cp ~/kernel_hack/my_repo/src/CH3/call_median* .
+\$ gcc call_median.c -o CallMedian
+\$ ./CallMedian
+\end{quote}
+
+call_median.hで参照するunistd_64.h事前にをコピーしている．
+
+\section{システムコールの動作確認}
+
+
