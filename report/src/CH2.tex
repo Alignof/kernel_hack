@@ -1,0 +1,84 @@
+\chapter{カーネルのリモート・デバッグ}
+この章では課題2で行った作業について説明する．
+課題2ではgdb のリモート・デバッグ機能を用いて，カーネルのプログラムをデバッグ可能な状態にしステップ実行でシステムコールを追う．
+
+\section{デバッグの準備}
+まず，カーネルをVMware経由でデバッグするための準備を行う．
+1章で行ったアドレスのランダム化の無効化やデバッグ情報の付加もデバッグのための準備の1つであった．
+ここではVMwareの設定を中心に説明する．
+
+まず，vimを使ってVMwareの.vmxファイルを直接編集する．
+\begin{quote}
+\$ cd 
+\$ cd vmware/Ubuntu\ 64-bit/
+\$ vim Ubuntu\ 64-bit.vmx
+debugStub.listen.guest64 = "TRUE"
+\end{quote}
+
+debugStub.listen.guest64という項目をTRUEにする．
+これによりポート8864番経由でgdbからリモートデバッグができるようになる．
+
+\section{デバッグ対象の準備}
+今回はrmdirというシステムコールの流れをgdbを使って追った．
+rmdirはディレクトリを削除するときに呼ばれるシステムコールで，ユーザが意図的にシステムコールを呼ぶような操作を行わない限り
+実行されないだろうという推測のもと選んだ．
+
+デバッグ対象となる，rmdirを呼ぶアセンブリをリスト\ref{lst:rmdir}に示す．
+\begin{longlisting}
+\begin{myminted}{asm}{rmdir.s}
+.intel_syntax noprefix
+.global main
+
+.LC1:
+    .string "target_dir"
+
+main:
+    push rbp
+    mov rbp, rsp
+
+    mov rax, 84 # rmdir
+    lea rdi, .LC1[rip]
+
+    syscall
+
+    mov rsp, rbp
+    pop rbp
+    ret
+\end{myminted}
+    \caption{rmdirを呼ぶアセンブリ}
+\label{lst:rmdir}
+\end{longlisting}
+
+rmdirに割り当てられている番号は84番\cite{syscall}なのでraxに84を入れてsyscallを呼んでいる．
+第一引数となるrdiレジスタには消去したいディレクトリ名を入れている．
+このプログラムを実行するとシステムコールrmdirが呼ばれカレントディレクトリにある"target_dir"というディレクトリが消される．
+
+\section{gdbを用いたデバッグ}
+準備ができたのでデバッグを行う．
+gdbを起動して以下のコマンドを入力し，rmdirのエントリ関数にbreakpointを仕掛ける．
+\begin{quote}
+\$ gdb 
+>>> file vmlinux
+>>> target remote localhost:8864
+>>> lx-symbols
+>>> b __x64_sys_rmdir 
+>>> c
+>>> b do_rmdir 
+\end{quote}
+
+\$がターミナルのプロンプト，>>>はgdb内のプロンプトである．
+まずgdbを起動し，vmlinuxを読み込む．
+vmlinuxにはデバッグに必要なデバッグシンボルやシンボルテーブルが内包されていて，
+カーネルをビルドしたディレクトリに置かれている．
+
+次にリモートの対象を指定してアタッチする．
+今回の場合は前述の通りlocalhostの8864番である．
+アタッチできたらlx-symbolsでシンボルを読み込む．
+
+ここまでで全ての準備が整ったのでシステムコールの流れを追っていく．
+まずシステムコールの流れを追うためにはその処理を行っている入口にブレークポイントを張る必要がある．
+対応表を見ると__x64_sys_rmdirにブレークポイントを張れば良いことが分かる．\cite{syscall}
+ブレークポイントを張ったら一度c(continue)で飛ぶ．
+するとrmdirの処理を行うdo_rmdirが見つかるのでそこにブレークポイントを仕掛ける．
+
+
