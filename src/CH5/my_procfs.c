@@ -133,13 +133,6 @@ static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, l
 static ssize_t mydevice_write(struct file *fp, const char __user *_buf, size_t count, loff_t *f_pos) {
     printk("write my device\n");
 
-    /*
-    if (count > BUF_SIZE) count = BUF_SIZE-1;
-    if (copy_from_user(buffer, _buf, count) != 0) {
-        return -EFAULT;
-    }
-    buffer[count] = '\0';
-    */
     return count;
 }
 
