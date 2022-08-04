@@ -210,7 +210,86 @@ uptimeはtimespec64という構造体の中に格納されるものであると�
 更にtimens\_add\_boottimeでbootにかかった時間を足している．\cite{time_add}
 
 \subsection{cpu}
+cpuの情報は構造体cpuinfo_x86を介してcpu_dataから取得することができる．
+ただし，cpuinfo_x86の定義を見れば分かるように周波数の情報だけは格納されてない．\cite{cpuinfo}
+そのため周波数は別の方法で取得する必要がある．
+
+しばらく調べるとaperfmperf_get_khzという関数を使ってcpuのidを引数に周波数を取得できる\cite{aperf}ことが分かったが，
+ここで1つ問題が生じる．
+周波数以外の情報を取得するための関数は全て外部から参照可能なもので適切にヘッダファイルをincludeすれば参照可能だった．
+%例えば
+
+しかし，このaperfmperf_get_khzはシンボルがエクスポートされておらずどこからも参照ができない．
+対処方法として，
+\begin{enumerate}
+    \item カーネルのソースコードからコピーする．
+    \item この関数を使わずに参照できる関数を使って同様の処理を実現する．
+    \item includeする以外の方法でシンボルを読み込む．
+\end{enumerate}
+
+という方法が考えられる．
+1.は単純な方法だが，ファイルを超えて関数や変数をコピーするたびに参照するべきものが増えてしまい（結果的に収束するにせよ）
+爆発的な量のソースコードのコピーが発生するため避けた．
+2.の可能性も考慮したが，手元で試す限りやはりaperfmperf_get_khzが周波数を取得するためこれも難しいと判断した．
+そこで今回は3の方法を使ってシンボルがエクスポートされてない関数を参照して使うことにした．
+
+シンボルがエクスポートされていない関数を参照する方法としてkallsyms_lookup_nameという関数を使う選択肢がある．
+しかし，肝心のkallsyms_lookup_nameもシンボルがエクスポートされていない．
+古いLinuxカーネルでは有効になっていたが，エクスポートされていない関数のアドレスも返してしまい危険だということで
+5.7以降でエクスポートされなくなっていた．\cite{kallsyms}
+
+そこで今回はkprobeを介してまずkallsyms_lookup_nameの関数ポインタを取得し，
+kallsyms_lookup_nameを使ってaperfmperf_get_khzの関数ポインタを取得する方法を採用した．
+まず構造体kprobeにシンボル名を代入し，register_kprobeで登録する．
+すると構造体kprobeのaddrに関数のアドレスが入るのでそれを取得することでkallsyms_lookup_nameの参照を獲得し，
+参照可能になったkallsyms_lookup_nameを使ってaperfmperf_get_khzを参照することができた．
+\footnote{簡単そうに言っているが方法があるのかわからない状態で手探りでこれをやるのは結構大変だった．
+が，案外上手く行ってしまいカーネル空間の力の強さを感じた．}
+
+この方法によって無事周波数についても値を取得することができた．
 
 \subsection{memory}
 メモリに関する情報は構造体sysinfoを通してsi\_meminfoから取得可能である．\cite{meminfo}
 構造体sysinfoにはメモリに関する情報がきれいに全部入っているのでこのまま使用可能である．
+
+\subsection{表示}
+ファイルの表示は先にsnprintfを使って整形した状態でバッファに書き込み
+それをcopy_to_userを使ってユーザ空間の配列にコピーする．
+一度で読みきれない可能性もあるので読んだところまでを記録しておき次読むときに備える．
+全て読まれた（残りのバッファが0になった）とき新しくデータを取得する．
+
+\section{動作の確認}
+上記の実装が正しく動作しているかを検証する．
+procファイルシステムを通じてアクセス可能なモジュールをビルドするために4章と同様にMakefileを用いた．
+使用したMakefileをリスト\ref{lst:procmake}に示す．
+\begin{longlisting}
+\begin{myminted}{make}{Makefile}
+obj-m := my_procfs.o
+EXTRA_CFLAGS := -I/home/tsukubataro/kernel_hack/linux-5.17.1/arch
+
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+
+clean:
+	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
+
+load:
+	sudo insmod my_procfs.ko
+
+unload:
+	sudo rmmod my_procfs.ko
+
+.PHONY: load remove
+\end{myminted}
+\caption{実装したモジュールをビルドするために用いたMakefile}
+\label{lst:procmake}
+\end{longlisting}
+
+実際にファイルを読んでみる．
+ファイルを読むにはmakeを使って以下のようにする．
+\begin{quote}
+\$ make
+\$ make load
+\$ cat /proc/MyProcFs
+\$ make unload
+\end{quote}
