@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include "tutorial_kernel_module.h"
+#include "my_chdev.h"
 
 int main() {
     int fd;

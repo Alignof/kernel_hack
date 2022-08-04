@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
-#include "tutorial_kernel_module.h"
+#include "my_chdev.h"
 #define DRIVER_NAME "MyDevice"
 #define BUF_SIZE 256
 
