@@ -236,10 +236,20 @@ unload:
 dmesgの出力をリスト\ref{lst:dmesg}に示す．
 \begin{longlisting}
 \begin{myminted}{}{}
-[ 1221.636727] driver loaded
-[ 1221.637147] [testmod kthread] start kthread
-[ 1222.145090] 1USD = 132.9739JPY
+[ 7221.627893] driver loaded
+[ 7221.627972] [testmod kthread] start kthread
+[ 7222.049732] 1USD = 133.2538JPY
+[10917.538824] 1USD = 133.2505JPY
+[14587.487342] 1USD = 133.2282JPY
+[18257.578345] 1USD = 133.3325JPY
+[21927.805566] 1USD = 133.2849JPY
+[25522.518082] [testmod kthread] stop kthread
+[25522.518149] driver unloaded
 \end{myminted}
 \caption{dmesgの出力}
 \label{lst:dmesg}
 \end{longlisting}
+
+本来カーネルログには様々なデータが流れるが，関連するもののみを抜粋して掲載した．
+1時間毎にドル円の為替の動きが表示されていることが分かる．
+正しく動作していることが分かった．
