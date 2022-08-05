@@ -1,0 +1,245 @@
+\chapter{定期的な仕事}
+本章ではkthreadを使ってカーネル内で定期的に動作するプログラムを作成する．
+
+\section{kthreadによる定期的な仕事}
+今回作成するのはカーネル空間から定期的にサーバにアクセスし，円相場を取得してカーネルログに流すプログラムである．
+作成したプログラムをリスト\ref{lst:rate}に示す．
+\begin{longlisting}
+\begin{myminted}{make}{kthread_test.c}
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
+#include <linux/string.h>
+#include <linux/file.h>
+#include <linux/in.h>
+#include <linux/inet.h>
+#include <linux/socket.h>
+#include <linux/tls.h>
+#include <net/sock.h>
+#include <linux/init.h>
+#define BUFFER_SIZE 1024
+#define API_KEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+MODULE_LICENSE("Dual BSD/GPL");
+
+struct task_struct *k;
+
+static int kthread_main(void) {
+    struct socket *sock;
+    struct sockaddr_in s_addr;
+    unsigned short port_num = 80;
+    int ret = 0;
+    char *send_buf = NULL;
+    char *recv_buf = NULL;
+    struct kvec send_vec, recv_vec;
+    struct msghdr send_msg, recv_msg;
+
+    /* kmalloc a send buffer*/
+    send_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+    if (send_buf == NULL) {
+        printk("client: send_buf kmalloc error!\n");
+        return ENOMEM;
+    }
+
+    /* kmalloc a receive buffer*/
+    recv_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+    if(recv_buf == NULL){
+        printk("client: recv_buf kmalloc error!\n");
+        return ENOMEM;
+    }
+    memset(&s_addr, 0, sizeof(s_addr));
+    s_addr.sin_family = AF_INET;
+    s_addr.sin_port = htons(port_num);
+    s_addr.sin_addr.s_addr = in_aton("52.73.174.144");
+    sock = (struct socket *)kmalloc(sizeof(struct socket), GFP_KERNEL);
+
+    ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    if (ret < 0) {
+        printk("client:socket create error!\n");
+        return ret;
+    } 
+
+    ret = sock->ops->connect(sock, (struct sockaddr *)&s_addr, sizeof(s_addr), 0);
+    if (ret != 0) {
+        printk("client: connect error!\n");
+        return ret;
+    }
+    memset(send_buf, 0, BUFFER_SIZE);
+    snprintf(
+        send_buf,
+        BUFFER_SIZE,
+        "GET /api/latest.json?app_id="
+        API_KEY
+        "&symbols=JPY HTTP/1.1\r\n"
+        "Host: 52.73.174.144\r\n"
+        "\r\n"
+    );
+    memset(&send_msg, 0, sizeof(send_msg));
+    memset(&send_vec, 0, sizeof(send_vec));
+
+    send_vec.iov_base = send_buf;
+    send_vec.iov_len = BUFFER_SIZE;
+
+    ret = kernel_sendmsg(sock, &send_msg, &send_vec, 1, BUFFER_SIZE);
+    if (ret < 0) {
+        printk("client: kernel_sendmsg error!\n");
+        return ret;
+    }
+
+    memset(recv_buf, 0, BUFFER_SIZE);
+    memset(&recv_vec, 0, sizeof(recv_vec));
+    memset(&recv_msg, 0, sizeof(recv_msg));
+    recv_vec.iov_base = recv_buf;
+    recv_vec.iov_len = BUFFER_SIZE;
+
+    ret = kernel_recvmsg(sock, &recv_msg, &recv_vec, 1, BUFFER_SIZE, 0);
+    char *jpy = NULL;
+    if (jpy = strstr(recv_buf, "\"JPY\": ")) {
+        jpy += sizeof("\"JPY\": ")-1;
+    }
+    printk("1USD = %.*sJPY\n", 8, jpy);
+
+    kernel_sock_shutdown(sock, SHUT_RDWR);
+    sock_release(sock);
+
+    return 0;
+}
+
+static int kthread_function(void* arg) {
+    printk(KERN_INFO "[%s] start kthread\n", k->comm);
+
+    while (!kthread_should_stop()) {
+        kthread_main();
+        ssleep(3600);
+    }
+
+    printk(KERN_INFO "[%s] stop kthread\n", k->comm);
+
+    return 0;
+}
+
+static int __init testmod_init(void) {
+    printk(KERN_INFO "driver loaded\n");
+
+    k = kthread_run(kthread_function, NULL, "testmod kthread");
+
+    return 0;
+}
+
+static void __exit testmod_exit(void) {
+    kthread_stop(k);
+    printk(KERN_INFO "driver unloaded\n");
+}
+
+module_init(testmod_init);
+module_exit(testmod_exit);
+\end{myminted}
+\caption{円相場を取得してカーネルログに流すプログラム}
+\label{lst:rate}
+\end{longlisting}
+
+このプログラムはkthreadを用いて1時間(3600秒)ごとにサーバにアクセスしてドル円のデータを取得するプログラムである．
+出力はprintkを用いてカーネルログに流す．
+定期的な実行とデータの取得の観点から以下プログラムについて説明する．
+
+\subsection{定期実行}
+カーネル内での定期的な実行にはkthreadを用いた．
+まず初期化の際にkthread_runを呼び出して第1引数に渡したkthread_functionを呼び出しスレッドにする．
+この際返り値として構造体task_structが帰ってくるのでグローバル変数として保存しておく．
+これはモジュールを終了するときにスレッドを止めるのに用いる．
+
+kthread_functionではkthread_should_stopがtrueになるまでの間実行を繰り返す．
+実際の処理はkthread_mainにかかれておりkthread_mainを実行するのと1時間待機するのを繰り返すことで定期的な仕事を実現している．
+
+\subsection{データの取得}
+データの取得はkthread_mainで行っている．
+為替をAPIで取得できるopen exchange rates\footnote{\url{https://openexchangerates.org/}}のサービスに登録し，そこのAPIを叩いた．
+最初は別のサービスのAPIの使用を検討していたが，HTTPSでしかリクエストを受け付けないサービスは実装が難しいと判断してHTTPでもリクエスト
+を送信できるこのサービスに決めた．今後機会があればSSLを用いた通信にも挑戦したい．
+
+通信はソケットを作成しTCPでHTTPのリクエストを送信することでデータを取得できた．
+通信を行っている関数kthread_mainの詳しい仕様をmanの形式に倣って以下に示す．
+\begin{longlisting}
+\begin{myminted}{}{}
+\$ man 2 kthread_main
+NAME
+       kthread_main - get a dollar to yen exchange rate
+
+SYNOPSIS
+       static int kthread_main(void)
+
+DESCRIPTION
+       カーネル内でHTTPを用いてサーバにアクセスし円相場（1USDあたりのJPY）を取得する．
+
+RETURN VALUE
+       成功した場合，0が返される．
+       バッファの確保に失敗した場合，ソケットの作成，接続，メッセージの送信などに失敗されたとき内容に応じて下記に示すエラーが返される．
+
+ERRORS
+       EINVAL ソケットのタイプが不正な場合に返される
+       ENFILE ソケットをこれ以上開けない場合に返される．
+       ENOMEM バッファの確保に失敗した場合に返される．
+\end{myminted}
+\caption{kthread_mainの仕様}
+\label{lst:syscallspec}
+\end{longlisting}
+
+処理は単純でシステムプログラムの課題でやったようなユーザランドのプログラムとあまり変わらなかった．
+まずport番号を80番に設定しkmallocでバッファをそれぞれ確保する．
+その後構造体sockaddr_inに値を設定してソケットをそれをsock_create_kernに渡すことでソケットを作成する．
+sockaddr_inに渡すIPアドレスはurlから事前にdigコマンドで取得したものである．
+
+ソケットを取得したら接続しHTTPのリクエストを送信する．
+今回であれば/api/latest.jsonにAPI KEYであるapp_idと対象となる通貨のコードであるsymbolsをパラメタとして渡せばいい\cite{api}ので
+GETを使ってリクエストを送信する．
+リスト\ref{lst:rate}のAPI KEYはダミーのものを記載しているが，実際にはサービスに登録した際に取得した値が入っている．
+
+kernel_sendmsgとkernel_recvmsgで送受信を行い，サーバから送られた情報がjson形式でrecv_bufに格納される．
+今回はjsonパーサを利用したり手書きせずにデータがある位置をstrstrで探してそこから決まった文字数を取得することでデータを獲得した．
+円相場が1ドル1000円台にならない限り小数点4桁までをカーネルログに表示する．
+
+
+\section{動作の確認}
+実際に動かして確かめる．
+使用したMakefileをリスト\ref{lst:kthreadmake}に示す．
+\begin{longlisting}
+\begin{myminted}{make}{Makefile}
+obj-m := kthread_test.o
+
+all:
+	make INCDIR=/usr/include -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+
+clean:
+	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
+
+load:
+	sudo insmod kthread_test.ko
+
+unload:
+	sudo rmmod kthread_test.ko
+
+.PHONY: load remove
+\end{myminted}
+\caption{6章で実装したモジュールをビルドするために用いたMakefile}
+\label{lst:kthreadmake}
+\end{longlisting}
+
+実際に実行する際にはmakeを使って以下のようにする．
+\begin{quote}
+\$ make
+\$ make load
+\$ dmesg -w
+\$ make unload
+\end{quote}
+
+検証する際には間隔を1時間にして実行した．
+dmesgの出力をリスト\ref{lst:dmesg}に示す．
+\begin{longlisting}
+\begin{myminted}{}{}
+[ 1221.636727] driver loaded
+[ 1221.637147] [testmod kthread] start kthread
+[ 1222.145090] 1USD = 132.9739JPY
+\end{myminted}
+\caption{dmesgの出力}
+\label{lst:dmesg}
+\end{longlisting}
