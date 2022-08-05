@@ -26,6 +26,7 @@ static struct cdev my_cdev;
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct _mydevice_file_data {
+    int *pos;
     unsigned char buffer[BUF_SIZE];
     struct parameter param;
 };
@@ -67,7 +68,10 @@ static int mydevice_open(struct inode *inode, struct file *fp) {
         return -ENOMEM;
     }
 
-    strlcat(p->buffer, "init", 4);
+    strlcat(p->buffer, "init", 5);
+    int *buf_pos = kmalloc(sizeof(int), GFP_KERNEL);
+    *buf_pos = 5;
+    p->pos = buf_pos;
     p->param.value1 = 0;
     p->param.value2 = 0;
     fp->private_data = p;
@@ -88,12 +92,22 @@ static int mydevice_close(struct inode *inode, struct file *fp) {
 static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, loff_t *f_pos) {
     printk("read my device\n");
 
-    if (count > BUF_SIZE) count = BUF_SIZE;
-
     struct _mydevice_file_data *p = fp->private_data;
-    if (copy_to_user(_buf, p->buffer, count) != 0) {
+    int *buf_pos = p->pos;
+
+    int copy_size = count;
+    if (count > *buf_pos) copy_size = *buf_pos;
+    if (copy_to_user(_buf, p->buffer, copy_size) != 0) {
         return -EFAULT;
     }
+
+    *f_pos += copy_size;
+    int i;
+    for (i = copy_size; i < *buf_pos; i++) {
+        p->buffer[i - copy_size] = p->buffer[i];
+    }
+    *buf_pos -= copy_size;
+
     return count;
 }
 
@@ -104,6 +118,10 @@ static ssize_t mydevice_write(struct file *fp, const char __user *_buf, size_t c
     if (copy_from_user(p->buffer, _buf, count) != 0) {
         return -EFAULT;
     }
+
+    int *buf_pos = p->pos;
+    *buf_pos += count;
+
     return count;
 }
 
@@ -178,23 +196,40 @@ struct parameter {
 また，unlocked\_ioctlにioctlの操作を定義する関数のポインタを登録する．
 このようにすることで各動作時の振る舞いを簡単に定義することができる．
 
-各関数の処理について説明する．
+各関数の処理について以下で説明する．
+\subsection{mydevice\_init, mydevice\_exit}
 まず，mydevice\_initではキャラクタデバイスの登録をしている．
 alloc\_chrdev\_region関数を用いてメジャー番号とマイナー番号，ドライバの名前などを登録し，cdev\_init関数で初期化，
 cdev\_addで登録を行う．
 mydevice\_exitでは逆にcdev\_delで削除を行い，unregister\_chrdev\_regionで登録も取り消す．
+また，バッファの初期化やioctlで操作するデータの初期化，バッファのサイズの初期化も行う．
 
+\subsection{mydevice\_open, mydevice\_close}
 mydevice\_openではファイルポインタのprivate\_dataにioctlのためのデータ領域を確保する．
 グローバル変数に領域を確保しても良いが，その場合同時に複数キャラクタデバイスにアクセスがあったときにデータが1つしか
 存在できないので競合が起きてしまう．
 ファイルポインタの領域にkmallocを使って確保することで複数の接続でもそれぞれで専用のデータ領域を確保できる．
 mydevice\_closeではopenで確保した領域を確保している．
 
+\subsection{mydevice\_read, mydevice\_write}
 mydevice\_readではファイルポインタに保存しているデータをユーザにコピーしてる．
 この際copy\_to\_userを用いて安全にユーザ空間のデータをカーネル空間に持ち込んでいる．
 mydevice\_writeではreadの逆で，ユーザ空間からのデータをファイルポインタに確保している空間にコピーしている．
 
+また，読み出すサイズが持っているバッファより大きい場合のためにバッファの現在の位置を保持している．
+これにより読み出しきれなかったときに再度読み込んだときの位置が続きからになる．
+writeでは書き込まれた分だけ残りのバッファの数を増加させ，readでは読み出した分だけ残りのバッファ数を減らす．
+
+\subsection{mydevice\_ioctl}
 mydevice\_ioctlではコマンドを受け取って実行する部分の処理を実装している．
+\begin{itemize}
+    \item[書式] static long mydevice_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
+    \item[概要] ioctlを使ってデバイスに特別なコマンドを送る
+    \item[引数] struct file *fp：ファイルポインタ．\\
+                unsigned int cmd ：コマンド（後述）．\\
+                unsigned long arg：コマンドに渡す引数．
+    \item[戻り値] 成功した場合0．引数コピーに失敗した場合EFAULT．
+\end{itemize}
 MYDEVIDE\_SET\_VALUESでは構造体parameterを受け取ってデータ領域に値をセットする．
 MYDEVICE\_GET\_VALUESでは保存されていた値をargに代入して返す．
 MYDEVICE\_SWAP\_VALUESは構造体parameterに2つあるデータを交換する．
@@ -242,7 +277,7 @@ unload:
 \$ make unload
 \end{quote}
 
-作成したキャラクタデバイスを開いて操作するプログラムをリスト\ref{lst:callchdev}に示す．
+作成したキャラクタデバイスを開いて読み書きとioctlによる操作をするプログラムをリスト\ref{lst:callchdev}に示す．
 \begin{longlisting}
 \begin{myminted}{c}{call\_mydevice.c}
 #include <stdio.h>
@@ -253,8 +288,11 @@ unload:
 #include <sys/ioctl.h>
 #include "my_chdev.h"
 
+#define BUF_SIZE 100
+
 int main() {
     int fd;
+    char buf[BUF_SIZE];
     struct parameter values_set;
     struct parameter values_get;
     values_set.value1 = 1;
@@ -262,13 +300,27 @@ int main() {
 
     if ((fd = open("/dev/mydevice0", O_RDWR)) < 0) perror("open");
 
+    printf("============================\n");
+    read(fd, buf, BUF_SIZE);
+    printf("%s\n", buf);
+
+    printf("============================\n");
+    write(fd, "hello!", 7);
+    read(fd, buf, BUF_SIZE);
+    printf("%s\n", buf);
+
+    printf("============================\n");
+    write(fd, "world!", 7);
+    read(fd, buf, BUF_SIZE);
+    printf("%s\n", buf);
+    printf("============================\n");
+
     if (ioctl(fd, MYDEVICE_SET_VALUES, &values_set) < 0) perror("ioctl_set");
     if (ioctl(fd, MYDEVICE_GET_VALUES, &values_get) < 0) perror("ioctl_get");
+    printf("value1 = %d, value2 = %d\n", values_get.value1, values_get.value2); // expected val1 = 1, val2 = 2
     if (ioctl(fd, MYDEVICE_SWAP_VALUES, &values_set) < 0) perror("ioctl_get");
     if (ioctl(fd, MYDEVICE_GET_VALUES, &values_get) < 0) perror("ioctl_get");
-
-    // expected val1 = 2, val2 = 1
-    printf("value1 = %d, value2 = %d\n", values_get.value1, values_get.value2);
+    printf("value1 = %d, value2 = %d\n", values_get.value1, values_get.value2); // expected val1 = 2, val2 = 1
 
     if (close(fd) != 0) perror("close");
     return 0;
@@ -278,4 +330,17 @@ int main() {
 \label{lst:callchdev}
 \end{longlisting}
 
-% 動作確認
+動作させた場合以下のようになる．
+\begin{quote}
+\$ ./a.out    
+============================
+init
+============================
+hello!
+============================
+world!
+value1 = 1, value2 = 2
+value1 = 2, value2 = 1
+\end{quote}
+
+期待したとおり読み書きができ，ioctlによる値の操作もset, get, swapともにできている．
