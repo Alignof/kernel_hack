@@ -281,7 +281,7 @@ unload:
 
 .PHONY: load remove
 \end{myminted}
-\caption{実装したモジュールをビルドするために用いたMakefile}
+\caption{5章で実装したモジュールをビルドするために用いたMakefile}
 \label{lst:procmake}
 \end{longlisting}
 
@@ -293,3 +293,61 @@ unload:
 \$ cat /proc/MyProcFs
 \$ make unload
 \end{quote}
+
+catの出力をリスト\ref{lst:cat}に示す．
+\begin{longlisting}
+\begin{myminted}{}{}
+========= system =========
+kernel version: Linux 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022
+uptime: 2587.05
+========== cpu ==========
+vender id: GenuineIntel
+cpu family: 6
+model: Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
+cpu MHz: 4007.998
+cache size: 8192 KB
+core id: 0
+cpu cores: 1
+========= memory =========
+MemTotal: 3986948
+MemFree: 2003176
+MemUsed: 1983772
+\end{myminted}
+\caption{cat /proc/MyProcFsの出力}
+\label{lst:cat}
+\end{longlisting}
+
+正しくデータが表示されてそうである．
+procファイルの表示と突き合わせてみる．
+\begin{quote}
+\$ cat /proc/uptime 
+2760.60 5322.63
+\$ uname -a
+Linux ubuntu 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
+\$ cat /proc/meminfo | head -n 5
+MemTotal:        3986948 kB
+MemFree:         2003200 kB
+MemAvailable:    2756972 kB
+Buffers:           58176 kB
+Cached:           889228 kB
+\$ cat /proc/cpuinfo | head -n 15
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 94
+model name	: Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
+stepping	: 3
+microcode	: 0xf0
+cpu MHz		: 4007.998
+cache size	: 8192 KB
+physical id	: 0
+siblings	: 1
+core id		: 0
+cpu cores	: 1
+apicid		: 0
+initial apicid	: 0
+\end{quote}
+
+正しく表示されていることが確認できた．
+
+
