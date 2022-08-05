@@ -10,6 +10,7 @@
 #include <net/sock.h>
 #include <linux/init.h>
 #define BUFFER_SIZE 1024
+#define API_KEY "9d0f0bc518774cdb861e50a742964ad5"
 
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -29,14 +30,14 @@ static int kthread_main(void) {
     send_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
     if (send_buf == NULL) {
         printk("client: send_buf kmalloc error!\n");
-        return -1;
+        return ENOMEM;
     }
 
     /* kmalloc a receive buffer*/
     recv_buf = kmalloc(BUFFER_SIZE, GFP_KERNEL);
     if(recv_buf == NULL){
         printk("client: recv_buf kmalloc error!\n");
-        return -1;
+        return ENOMEM;
     }
     memset(&s_addr, 0, sizeof(s_addr));
     s_addr.sin_family = AF_INET;
@@ -59,7 +60,9 @@ static int kthread_main(void) {
     snprintf(
         send_buf,
         BUFFER_SIZE,
-        "GET /api/latest.json?app_id=9d0f0bc518774cdb861e50a742964ad5&symbols=JPY HTTP/1.1\r\n"
+        "GET /api/latest.json?app_id="
+        API_KEY
+        "&symbols=JPY HTTP/1.1\r\n"
         "Host: 52.73.174.144\r\n"
         "\r\n"
     );
@@ -73,8 +76,6 @@ static int kthread_main(void) {
     if (ret < 0) {
         printk("client: kernel_sendmsg error!\n");
         return ret;
-    } else if(ret != BUFFER_SIZE){
-        printk("client: ret!=BUFFER_SIZE");
     }
 
     memset(recv_buf, 0, BUFFER_SIZE);
@@ -93,15 +94,17 @@ static int kthread_main(void) {
     kernel_sock_shutdown(sock, SHUT_RDWR);
     sock_release(sock);
 
-    ssleep(300);
     return 0;
 }
 
 static int kthread_function(void* arg) {
-    printk(KERN_INFO "[%s] start kthread\n", k->comm);
+    const int timeout_sec = 3600;
 
+    printk(KERN_INFO "[%s] start kthread\n", k->comm);
     while (!kthread_should_stop()) {
         kthread_main();
+        set_current_state(TASK_INTERRUPTIBLE);
+        schedule_timeout(timeout_sec * HZ);
     }
 
     printk(KERN_INFO "[%s] stop kthread\n", k->comm);
