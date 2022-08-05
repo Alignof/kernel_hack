@@ -16,6 +16,7 @@ static struct cdev my_cdev;
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct _mydevice_file_data {
+    int *pos;
     unsigned char buffer[BUF_SIZE];
     struct parameter param;
 };
@@ -57,7 +58,10 @@ static int mydevice_open(struct inode *inode, struct file *fp) {
         return -ENOMEM;
     }
 
-    strlcat(p->buffer, "init", 4);
+    strlcat(p->buffer, "init", 5);
+    int *buf_pos = kmalloc(sizeof(int), GFP_KERNEL);
+    *buf_pos = 5;
+    p->pos = buf_pos;
     p->param.value1 = 0;
     p->param.value2 = 0;
     fp->private_data = p;
@@ -78,12 +82,22 @@ static int mydevice_close(struct inode *inode, struct file *fp) {
 static ssize_t mydevice_read(struct file *fp, char __user *_buf, size_t count, loff_t *f_pos) {
     printk("read my device\n");
 
-    if (count > BUF_SIZE) count = BUF_SIZE;
-
     struct _mydevice_file_data *p = fp->private_data;
-    if (copy_to_user(_buf, p->buffer, count) != 0) {
+    int *buf_pos = p->pos;
+
+    int copy_size = count;
+    if (count > *buf_pos) copy_size = *buf_pos;
+    if (copy_to_user(_buf, p->buffer, copy_size) != 0) {
         return -EFAULT;
     }
+
+    *f_pos += copy_size;
+    int i;
+    for (i = copy_size; i < *buf_pos; i++) {
+        p->buffer[i - copy_size] = p->buffer[i];
+    }
+    *buf_pos -= copy_size;
+
     return count;
 }
 
@@ -94,6 +108,10 @@ static ssize_t mydevice_write(struct file *fp, const char __user *_buf, size_t c
     if (copy_from_user(p->buffer, _buf, count) != 0) {
         return -EFAULT;
     }
+
+    int *buf_pos = p->pos;
+    *buf_pos += count;
+
     return count;
 }
 
