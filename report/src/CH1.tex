@@ -5,7 +5,7 @@
 configの生成にはdefconfigをパラメタの設定にはmenuconfigを用いた．
 
 \begin{quote}
-\$ make defconfig
+\$ make defconfig\\
 \$ make menuconfig
 \end{quote}
 defconfigはmenuconfigに比べて最小限の設定しか生成しないため，まずdefconfigを用いて軽量な設定ファイルを作ってから
@@ -28,8 +28,8 @@ CONFIG\_DEBUG\_INFOを有効化した．
 \section{ビルドの準備と実行}
 ビルドする前に準備としてターミナル上で以下のコマンドを実行した．
 \begin{quote}
-\$ ./scripts/config --disable SYSTEM\_TRUSTED\_KEYS
-\$ ./scripts/config --disable SYSTEM\_REVOCATION\_KEYS
+\$ ./scripts/config --disable SYSTEM\_TRUSTED\_KEYS \\
+\$ ./scripts/config --disable SYSTEM\_REVOCATION\_KEYS \\
 \$ ./scripts/config --disable MODULE\_SIG\_KEY
 \end{quote}
 これらの設定はビルド中の認証を回避するためのものである．
@@ -37,7 +37,7 @@ CONFIG\_DEBUG\_INFOを有効化した．
 ビルドに必要な設定がすべて完了したのでビルドを行う．
 今回ホストは以下に示すようにubuntuなので，
 \begin{quote}
-\$ uname -a
+\$ uname -a \\
 Linux kh-ubuntu 5.15.0-41-generic \#44~20.04.1-Ubuntu SMP Fri Jun 24 13:27:29 UTC 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
@@ -52,12 +52,13 @@ makeに-j8というオプションをつけることで8ジョブで並列に処
 
 ビルドが終わったらVMwareでゲストOSを立ち上げインストールを行う．
 \begin{quote}
-\$ cd kernel\_hack/
-\$ dpkg --install *.deb
-\$ uname -a
+\$ cd kernel\_hack/ \\
+\$ dpkg --install *.deb \\
+\$ uname -a \\
 Linux ubuntu 5.17.1 \#2 SMP PREEMPT Thu Apr 21 19:27:13 JST 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
 インストールしたら再起動してunameでカーネルのバージョンを表示する．
 期待していたカーネルをインストールして起動できることが確認できた．
+
 

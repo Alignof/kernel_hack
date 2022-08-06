@@ -223,7 +223,7 @@ writeでは書き込まれた分だけ残りのバッファの数を増加させ
 \subsection{mydevice\_ioctl}
 mydevice\_ioctlではコマンドを受け取って実行する部分の処理を実装している．
 \begin{itemize}
-    \item[書式] static long mydevice_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
+    \item[書式] static long mydevice\_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
     \item[概要] ioctlを使ってデバイスに特別なコマンドを送る
     \item[引数] struct file *fp：ファイルポインタ．\\
                 unsigned int cmd ：コマンド（後述）．\\
@@ -270,10 +270,10 @@ unload:
 マイナー番号が機能しているか確認するために複数のデバイスを同時に作成している．
 実際に動作を確認するときは以下のようにビルドして動作を確認する．
 \begin{quote}
-\$ make
-\$ make load
-\$ gcc call\_mydevice.c
-\$ ./a.out
+\$ make \\
+\$ make load \\
+\$ gcc call\_mydevice.c \\
+\$ ./a.out \\
 \$ make unload
 \end{quote}
 
@@ -332,15 +332,16 @@ int main() {
 
 動作させた場合以下のようになる．
 \begin{quote}
-\$ ./a.out    
-============================
-init
-============================
-hello!
-============================
-world!
-value1 = 1, value2 = 2
+\$ ./a.out     \\
+============================ \\
+init \\
+============================ \\
+hello! \\
+============================ \\
+world! \\
+value1 = 1, value2 = 2 \\
 value1 = 2, value2 = 1
 \end{quote}
 
 期待したとおり読み書きができ，ioctlによる値の操作もset, get, swapともにできている．
+

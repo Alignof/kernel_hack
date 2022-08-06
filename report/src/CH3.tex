@@ -141,12 +141,12 @@ do\_medianではまず引数のチェックを行い実行が不可能な場合�
 システムコールはカーネルのソースコードを改変する形で組み込むので1度カーネルをビルドし直す必要がある．
 以下の操作でビルドを行った．（カッコ内は修正内容）
 \begin{quote}
-\$ cd ~/kernel\_hack/linux-5.17.1/arch/x86/kernel
-\$ cp ~/kernel\_hack/myrepo/src/CH3/my\_syscall.c  ./median.c
-\$ vim ~/kernel\_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59)
-\$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys\_median( int \_\_user *array, const int size, float \_\_user *result);" to line 1000)
-\$ vim ../../../arch/x86/entry/syscalls/syscall\_64.tbl (add "336 common  median         sys\_median")
-\$ cd ~/kernel\_hack/linux-5.17.1/
+\$ cd ~/kernel\_hack/linux-5.17.1/arch/x86/kernel \\
+\$ cp ~/kernel\_hack/myrepo/src/CH3/my\_syscall.c  ./median.c \\
+\$ vim ~/kernel\_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59) \\
+\$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys\_median( int \_\_user *array, const int size, float \_\_user *result);" to line 1000) \\
+\$ vim ../../../arch/x86/entry/syscalls/syscall\_64.tbl (add "336 common  median         sys\_median") \\
+\$ cd ~/kernel\_hack/linux-5.17.1/ \\
 \$ make -j8 bindeb-pkg  KDEB\_PKGVERSION=5.17.1-AddMedian
 \end{quote}
 
@@ -157,11 +157,11 @@ do\_medianではまず引数のチェックを行い実行が不可能な場合�
 
 次にゲストOSに移動し1章と同様の手順でインストールを行う．
 \begin{quote}
-\$ cd kernel\_hack/
-\$ sudo dpkg -r linux-image-5.17.1
-\$ sudo dpkg -r linux-image-5.17.1-dbg
-\$ sudo dpkg --install *AddMedian*.deb
-\$ uname -a
+\$ cd kernel\_hack/ \\
+\$ sudo dpkg -r linux-image-5.17.1 \\
+\$ sudo dpkg -r linux-image-5.17.1-dbg \\
+\$ sudo dpkg --install *AddMedian*.deb \\
+\$ uname -a \\
 Linux ubuntu 5.17.1 \#AddMedian SMP PREEMPT Sat May 28 00:35:01 JST 2022 x86\_64 x86\_64 x86\_64 GNU/Linux
 \end{quote}
 
@@ -205,10 +205,10 @@ syscall関数を使って任意のシステムコールを呼び出すことが�
 実行の流れを以下に示す．
 
 \begin{quote}
-\$ cd ~/tmp/CH3
-\$ cp ~/kernel\_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd\_64.h .
-\$ cp ~/kernel\_hack/my\_repo/src/CH3/call\_median* .
-\$ gcc call\_median.c -o CallMedian
+\$ cd ~/tmp/CH3 \\
+\$ cp ~/kernel\_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd\_64.h . \\
+\$ cp ~/kernel\_hack/my\_repo/src/CH3/call\_median* . \\
+\$ gcc call\_median.c -o CallMedian \\
 \$ ./CallMedian
 \end{quote}
 
@@ -261,13 +261,13 @@ int main(void) {
 実際に動作させて確認する．
 
 \begin{quote}
-\$ ./a.out 
-syscall_median(ok_1, 7, &result) result -> 4
-syscall_median(ok_2, 6, &result) result -> 4
-syscall_median(test, 6, &result) returned 22
-syscall_median(test, 6, &result) returned 22
-syscall_median(test_large, LARGE_SIZE, &result) returned 22
-syscall_median(test_null, 5, &result) returned 14
+\$ ./a.out  \\
+syscall\_median(ok\_1, 7, \&result) result -> 4 \\
+syscall\_median(ok\_2, 6, \&result) result -> 4 \\
+syscall\_median(test, 6, \&result) returned 22 \\
+syscall\_median(test, 6, \&result) returned 22 \\
+syscall\_median(test\_large, LARGE\_SIZE, \&result) returned 22 \\
+syscall\_median(test\_null, 5, \&result) returned 14
 \end{quote}
 
 正しい動作では期待通りどちらも4を返した．

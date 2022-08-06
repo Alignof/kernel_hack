@@ -5,7 +5,7 @@
 今回作成するのはカーネル空間から定期的にサーバにアクセスし，円相場を取得してカーネルログに流すプログラムである．
 作成したプログラムをリスト\ref{lst:rate}に示す．
 \begin{longlisting}
-\begin{myminted}{make}{kthread_test.c}
+\begin{myminted}{basemake}{kthread\_test.c}
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -144,23 +144,23 @@ module_exit(testmod_exit);
 
 \subsection{定期実行}
 カーネル内での定期的な実行にはkthreadを用いた．
-まず初期化の際にkthread_runを呼び出して第1引数に渡したkthread_functionを呼び出しスレッドにする．
-この際返り値として構造体task_structが帰ってくるのでグローバル変数として保存しておく．
+まず初期化の際にkthread\_runを呼び出して第1引数に渡したkthread\_functionを呼び出しスレッドにする．
+この際返り値として構造体task\_structが帰ってくるのでグローバル変数として保存しておく．
 これはモジュールを終了するときにスレッドを止めるのに用いる．
 
-kthread_functionではkthread_should_stopがtrueになるまでの間実行を繰り返す．
-実際の処理はkthread_mainにかかれておりkthread_mainを実行するのと1時間待機するのを繰り返すことで定期的な仕事を実現している．
+kthread\_functionではkthread\_should\_stopがtrueになるまでの間実行を繰り返す．
+実際の処理はkthread\_mainにかかれておりkthread\_mainを実行するのと1時間待機するのを繰り返すことで定期的な仕事を実現している．
 
 \subsection{データの取得}
-データの取得はkthread_mainで行っている．
+データの取得はkthread\_mainで行っている．
 為替をAPIで取得できるopen exchange rates\footnote{\url{https://openexchangerates.org/}}のサービスに登録し，そこのAPIを叩いた．
 最初は別のサービスのAPIの使用を検討していたが，HTTPSでしかリクエストを受け付けないサービスは実装が難しいと判断してHTTPでもリクエスト
 を送信できるこのサービスに決めた．今後機会があればSSLを用いた通信にも挑戦したい．
 
 通信はソケットを作成しTCPでHTTPのリクエストを送信することでデータを取得できた．
-通信を行っている関数kthread_mainの詳しい仕様をmanの形式に倣って以下に示す．
+通信を行っている関数kthread\_mainの詳しい仕様をmanの形式に倣って以下に示す．
 \begin{longlisting}
-\begin{myminted}{}{}
+\begin{myminted}{text}[]
 \$ man 2 kthread_main
 NAME
        kthread_main - get a dollar to yen exchange rate
@@ -180,21 +180,21 @@ ERRORS
        ENFILE ソケットをこれ以上開けない場合に返される．
        ENOMEM バッファの確保に失敗した場合に返される．
 \end{myminted}
-\caption{kthread_mainの仕様}
+\caption{kthread\_mainの仕様}
 \label{lst:syscallspec}
 \end{longlisting}
 
 処理は単純でシステムプログラムの課題でやったようなユーザランドのプログラムとあまり変わらなかった．
 まずport番号を80番に設定しkmallocでバッファをそれぞれ確保する．
-その後構造体sockaddr_inに値を設定してソケットをそれをsock_create_kernに渡すことでソケットを作成する．
-sockaddr_inに渡すIPアドレスはurlから事前にdigコマンドで取得したものである．
+その後構造体sockaddr\_inに値を設定してソケットをそれをsock\_create\_kernに渡すことでソケットを作成する．
+sockaddr\_inに渡すIPアドレスはurlから事前にdigコマンドで取得したものである．
 
 ソケットを取得したら接続しHTTPのリクエストを送信する．
-今回であれば/api/latest.jsonにAPI KEYであるapp_idと対象となる通貨のコードであるsymbolsをパラメタとして渡せばいい\cite{api}ので
+今回であれば/api/latest.jsonにAPI KEYであるapp\_idと対象となる通貨のコードであるsymbolsをパラメタとして渡せばいい\cite{api}ので
 GETを使ってリクエストを送信する．
 リスト\ref{lst:rate}のAPI KEYはダミーのものを記載しているが，実際にはサービスに登録した際に取得した値が入っている．
 
-kernel_sendmsgとkernel_recvmsgで送受信を行い，サーバから送られた情報がjson形式でrecv_bufに格納される．
+kernel\_sendmsgとkernel\_recvmsgで送受信を行い，サーバから送られた情報がjson形式でrecv\_bufに格納される．
 今回はjsonパーサを利用したり手書きせずにデータがある位置をstrstrで探してそこから決まった文字数を取得することでデータを獲得した．
 円相場が1ドル1000円台にならない限り小数点4桁までをカーネルログに表示する．
 
@@ -203,7 +203,7 @@ kernel_sendmsgとkernel_recvmsgで送受信を行い，サーバから送られ�
 実際に動かして確かめる．
 使用したMakefileをリスト\ref{lst:kthreadmake}に示す．
 \begin{longlisting}
-\begin{myminted}{make}{Makefile}
+\begin{myminted}{basemake}{Makefile}
 obj-m := kthread_test.o
 
 all:
@@ -226,16 +226,16 @@ unload:
 
 実際に実行する際にはmakeを使って以下のようにする．
 \begin{quote}
-\$ make
-\$ make load
-\$ dmesg -w
+\$ make \\
+\$ make load \\
+\$ dmesg -w \\
 \$ make unload
 \end{quote}
 
 検証する際には間隔を1時間にして実行した．
 dmesgの出力をリスト\ref{lst:dmesg}に示す．
 \begin{longlisting}
-\begin{myminted}{}{}
+\begin{myminted}{text}[]
 [ 7221.627893] driver loaded
 [ 7221.627972] [testmod kthread] start kthread
 [ 7222.049732] 1USD = 133.2538JPY

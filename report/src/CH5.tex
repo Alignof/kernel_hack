@@ -210,16 +210,16 @@ uptimeはtimespec64という構造体の中に格納されるものであると�
 更にtimens\_add\_boottimeでbootにかかった時間を足している．\cite{time_add}
 
 \subsection{cpu}
-cpuの情報は構造体cpuinfo_x86を介してcpu_dataから取得することができる．
-ただし，cpuinfo_x86の定義を見れば分かるように周波数の情報だけは格納されてない．\cite{cpuinfo}
+cpuの情報は構造体cpuinfo\_x86を介してcpu\_dataから取得することができる．
+ただし，cpuinfo\_x86の定義を見れば分かるように周波数の情報だけは格納されてない．\cite{cpuinfo}
 そのため周波数は別の方法で取得する必要がある．
 
-しばらく調べるとaperfmperf_get_khzという関数を使ってcpuのidを引数に周波数を取得できる\cite{aperf}ことが分かったが，
+しばらく調べるとaperfmperf\_get\_khzという関数を使ってcpuのidを引数に周波数を取得できる\cite{aperf}ことが分かったが，
 ここで1つ問題が生じる．
 周波数以外の情報を取得するための関数は全て外部から参照可能なもので適切にヘッダファイルをincludeすれば参照可能だった．
 %例えば
 
-しかし，このaperfmperf_get_khzはシンボルがエクスポートされておらずどこからも参照ができない．
+しかし，このaperfmperf\_get\_khzはシンボルがエクスポートされておらずどこからも参照ができない．
 対処方法として，
 \begin{enumerate}
     \item カーネルのソースコードからコピーする．
@@ -230,19 +230,19 @@ cpuの情報は構造体cpuinfo_x86を介してcpu_dataから取得すること�
 という方法が考えられる．
 1.は単純な方法だが，ファイルを超えて関数や変数をコピーするたびに参照するべきものが増えてしまい（結果的に収束するにせよ）
 爆発的な量のソースコードのコピーが発生するため避けた．
-2.の可能性も考慮したが，手元で試す限りやはりaperfmperf_get_khzが周波数を取得するためこれも難しいと判断した．
+2.の可能性も考慮したが，手元で試す限りやはりaperfmperf\_get\_khzが周波数を取得するためこれも難しいと判断した．
 そこで今回は3の方法を使ってシンボルがエクスポートされてない関数を参照して使うことにした．
 
-シンボルがエクスポートされていない関数を参照する方法としてkallsyms_lookup_nameという関数を使う選択肢がある．
-しかし，肝心のkallsyms_lookup_nameもシンボルがエクスポートされていない．
+シンボルがエクスポートされていない関数を参照する方法としてkallsyms\_lookup\_nameという関数を使う選択肢がある．
+しかし，肝心のkallsyms\_lookup\_nameもシンボルがエクスポートされていない．
 古いLinuxカーネルでは有効になっていたが，エクスポートされていない関数のアドレスも返してしまい危険だということで
 5.7以降でエクスポートされなくなっていた．\cite{kallsyms}
 
-そこで今回はkprobeを介してまずkallsyms_lookup_nameの関数ポインタを取得し，
-kallsyms_lookup_nameを使ってaperfmperf_get_khzの関数ポインタを取得する方法を採用した．
-まず構造体kprobeにシンボル名を代入し，register_kprobeで登録する．
-すると構造体kprobeのaddrに関数のアドレスが入るのでそれを取得することでkallsyms_lookup_nameの参照を獲得し，
-参照可能になったkallsyms_lookup_nameを使ってaperfmperf_get_khzを参照することができた．
+そこで今回はkprobeを介してまずkallsyms\_lookup\_nameの関数ポインタを取得し，
+kallsyms\_lookup\_nameを使ってaperfmperf\_get\_khzの関数ポインタを取得する方法を採用した．
+まず構造体kprobeにシンボル名を代入し，register\_kprobeで登録する．
+すると構造体kprobeのaddrに関数のアドレスが入るのでそれを取得することでkallsyms\_lookup\_nameの参照を獲得し，
+参照可能になったkallsyms\_lookup\_nameを使ってaperfmperf\_get\_khzを参照することができた．
 \footnote{簡単そうに言っているが方法があるのかわからない状態で手探りでこれをやるのは結構大変だった．
 が，案外上手く行ってしまいカーネル空間の力の強さを感じた．}
 
@@ -254,7 +254,7 @@ kallsyms_lookup_nameを使ってaperfmperf_get_khzの関数ポインタを取得
 
 \subsection{表示}
 ファイルの表示は先にsnprintfを使って整形した状態でバッファに書き込み
-それをcopy_to_userを使ってユーザ空間の配列にコピーする．
+それをcopy\_to\_userを使ってユーザ空間の配列にコピーする．
 一度で読みきれない可能性もあるので読んだところまでを記録しておき次読むときに備える．
 全て読まれた（残りのバッファが0になった）とき新しくデータを取得する．
 
@@ -263,7 +263,7 @@ kallsyms_lookup_nameを使ってaperfmperf_get_khzの関数ポインタを取得
 procファイルシステムを通じてアクセス可能なモジュールをビルドするために4章と同様にMakefileを用いた．
 使用したMakefileをリスト\ref{lst:procmake}に示す．
 \begin{longlisting}
-\begin{myminted}{make}{Makefile}
+\begin{myminted}{basemake}{Makefile}
 obj-m := my_procfs.o
 EXTRA_CFLAGS := -I/home/tsukubataro/kernel_hack/linux-5.17.1/arch
 
@@ -288,15 +288,15 @@ unload:
 実際にファイルを読んでみる．
 ファイルを読むにはmakeを使って以下のようにする．
 \begin{quote}
-\$ make
-\$ make load
-\$ cat /proc/MyProcFs
+\$ make \\
+\$ make load \\
+\$ cat /proc/MyProcFs \\
 \$ make unload
 \end{quote}
 
 catの出力をリスト\ref{lst:cat}に示す．
 \begin{longlisting}
-\begin{myminted}{}{}
+\begin{myminted}{text}[]
 ========= system =========
 kernel version: Linux 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022
 uptime: 2587.05
@@ -320,31 +320,31 @@ MemUsed: 1983772
 正しくデータが表示されてそうである．
 procファイルの表示と突き合わせてみる．
 \begin{quote}
-\$ cat /proc/uptime 
-2760.60 5322.63
-\$ uname -a
-Linux ubuntu 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022 x86_64 x86_64 x86_64 GNU/Linux
-\$ cat /proc/meminfo | head -n 5
-MemTotal:        3986948 kB
-MemFree:         2003200 kB
-MemAvailable:    2756972 kB
-Buffers:           58176 kB
-Cached:           889228 kB
-\$ cat /proc/cpuinfo | head -n 15
-processor	: 0
-vendor_id	: GenuineIntel
-cpu family	: 6
-model		: 94
-model name	: Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz
-stepping	: 3
-microcode	: 0xf0
-cpu MHz		: 4007.998
-cache size	: 8192 KB
-physical id	: 0
-siblings	: 1
-core id		: 0
-cpu cores	: 1
-apicid		: 0
+\$ cat /proc/uptime  \\
+2760.60 5322.63 \\
+\$ uname -a \\
+Linux ubuntu 5.17.1 \#AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022 x86\_64 x86\_64 x86\_64 GNU/Linux \\
+\$ cat /proc/meminfo | head -n 5 \\
+MemTotal:        3986948 kB \\
+MemFree:         2003200 kB \\
+MemAvailable:    2756972 kB \\
+Buffers:           58176 kB \\
+Cached:           889228 kB \\
+\$ cat /proc/cpuinfo | head -n 15 \\
+processor	: 0 \\
+vendor\_id	: GenuineIntel \\
+cpu family	: 6 \\
+model		: 94 \\
+model name	: Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz \\
+stepping	: 3 \\
+microcode	: 0xf0 \\
+cpu MHz		: 4007.998 \\
+cache size	: 8192 KB \\
+physical id	: 0 \\
+siblings	: 1 \\
+core id		: 0 \\
+cpu cores	: 1 \\
+apicid		: 0 \\
 initial apicid	: 0
 \end{quote}
 
