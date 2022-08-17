@@ -211,7 +211,7 @@ uptimeはtimespec64という構造体の中に格納されるものであると�
 
 \subsection{cpu}
 cpuの情報は構造体cpuinfo\_x86を介してcpu\_dataから取得することができる．
-ただし，cpuinfo\_x86の定義を見れば分かるように周波数の情報だけは格納されてない．\cite{cpuinfo}
+ただし，cpuinfo\_x86の定義を見れば分かるように周波数の情報だけは格納されてない\cite{cpuinfo}．
 そのため周波数は別の方法で取得する必要がある．
 
 しばらく調べるとaperfmperf\_get\_khzという関数を使ってcpuのidを引数に周波数を取得できる\cite{aperf}ことが分かったが，
@@ -235,7 +235,7 @@ cpuの情報は構造体cpuinfo\_x86を介してcpu\_dataから取得するこ�
 
 シンボルがエクスポートされていない関数を参照する方法としてkallsyms\_lookup\_nameという関数を使う選択肢がある．
 しかし，肝心のkallsyms\_lookup\_nameもシンボルがエクスポートされていない．
-古いLinuxカーネルでは有効になっていたが，エクスポートされていない関数のアドレスも返してしまい危険だということで
+古いLinuxカーネルでは有効になっていたが，エクスポートされていない関数のアドレスも返してしまい危険であるということで
 5.7以降でエクスポートされなくなっていた．\cite{kallsyms}
 
 そこで今回はkprobeを介してまずkallsyms\_lookup\_nameの関数ポインタを取得し，
@@ -296,7 +296,7 @@ unload:
 
 catの出力をリスト\ref{lst:cat}に示す．
 \begin{longlisting}
-\begin{myminted}{text}[]
+\begin{myminted}{text}{}
 ========= system =========
 kernel version: Linux 5.17.1 #AddMySyscall SMP PREEMPT Sat Apr 30 02:00:12 JST 2022
 uptime: 2587.05

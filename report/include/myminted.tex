@@ -1,6 +1,10 @@
 \definecolor{bg}{HTML}{333333}
 \definecolor{line}{HTML}{000000}
 
+\renewcommand{\theFancyVerbLine}{\bfseries
+    \textcolor[rgb]{0.2,0.2,0.2}{\scriptsize
+        \oldstylenums{\arabic{FancyVerbLine}}}}
+
 \newenvironment{longlisting}{\captionsetup{type=listing}}{}
 \renewcommand\listtablename{表}
 \renewcommand\listingscaption{リスト}
@@ -17,7 +21,7 @@
     minted style=monokai,
     minted language=#2,
     colback=bg,
-    colupper=gray!120,
+    colupper=white,
     minted options={%
         linenos,
         breaklines, 

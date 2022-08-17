@@ -136,7 +136,7 @@ filename\_parentatという関数が見えるので中に入ってみる．
  2574      if (likely(!retval)) \{ \\
  2575          *last = nd.last; \\
  2576          *type = nd.last\_type; \\
- 2577          audit\_inode(name, parent->dentry, AUDIT\_INODE\_PARENT); \\
+ 2577          audit\_inode(name, parent-$>$dentry, AUDIT\_INODE\_PARENT); \\
  2578      \} \\
  2579      restore\_nameidata(); \\
  2580      return retval; \\
@@ -153,7 +153,7 @@ filename\_parentatという関数が見えるので中に入ってみる．
 do\_rmdirにまで戻って返り値の確認をする．
 \begin{quote}
 $>>>$ n \\
-─── Source 
+─── Source ──────────────────────────────
 \\
  4043      struct qstr last; \\
  4044      int type; \\
@@ -203,7 +203,7 @@ $>>>$ n \\
  4064      if (error) \\
  4065          goto exit2; \\
  4066 \\
- 4067      inode\_lock\_nested(path.dentry->d\_inode, I\_MUTEX\_PARENT); \\
+ 4067      inode\_lock\_nested(path.dentry-$>$d\_inode, I\_MUTEX\_PARENT); \\
 ─── Stack ──────────────
 \\
 {[0]} from 0xffffffff8121f016 in do\_rmdir+182 at fs/namei.c:4063 \\
@@ -233,17 +233,18 @@ $>>>$ n \\
  4077      if (error) \\
  4078          goto exit4; \\
  4079      mnt\_userns = mnt\_user\_ns(path.mnt); \\
- 4080      error = vfs\_rmdir(mnt\_userns, path.dentry->d\_inode, dentry); \\
+ 4080      error = vfs\_rmdir(mnt\_userns, path.dentry-$>$d\_inode, dentry); \\
  4081  exit4: \\
  4082      dput(dentry); \\
  4083  exit3: \\
- 4084      inode\_unlock(path.dentry->d\_inode); \\
+ 4084      inode\_unlock(path.dentry-$>$d\_inode); \\
 ─── Stack ──────────────
+\\
 {[0]} from 0xffffffff8121f06f in do\_rmdir+271 at fs/namei.c:4080 \\
 {[1]} from 0xffffffff8121f12e in \_\_do\_sys\_rmdir+29 at fs/namei.c:4099 \\
 $>>>$ p mnt\_userns \\
 \$8 = (struct user\_namespace *) 0xffffffff8284ec80 <init\_user\_ns> \\
-$>>>$ p path.dentry->d\_inode \\
+$>>>$ p path.dentry-$>$d\_inode \\
 \$9 = (struct inode *) 0xffff888126faa950 \\
 $>>>$ p dentry \\
 \$10 = (struct dentry *) 0xffff88801da7d600
@@ -300,7 +301,7 @@ out:
 
 may\_deleteでまずディレクトリを消去可能かをチェックし，
 inodeのrwsemを0にしてinodeをlockする．
-その後， security\_inode\_rmdir，dir->i\_op->rmdirを試す．
+その後， security\_inode\_rmdir，dir-$>$i\_op-$>$rmdirを試す．
 \begin{quote}
 ─── Source ─────────────
 \\
@@ -309,23 +310,24 @@ inodeのrwsemを0にしてinodeをlockする．
  4001      if (error) \\
  4002          return error; \\
  4003 \\
- 4004      if (!dir->i\_op->rmdir) \\
+ 4004      if (!dir-$>$i\_op-$>$rmdir) \\
  4005          return -EPERM; \\
  4006 \\
  4007      dget(dentry); \\
- 4008      inode\_lock(dentry->d\_inode); \\
+ 4008      inode\_lock(dentry-$>$d\_inode); \\
 ─── Stack ──────────────
+\\
 {[0]} from 0xffffffff81219723 in vfs\_rmdir+35 at fs/namei.c:4004 \\
 {[1]} from 0xffffffff8121f07f in do\_rmdir+287 at fs/namei.c:4080 \\
-$>>>$ p dir->i\_op->rmdir \\
-\$1 = (int (*)(struct inode *, struct dentry *)) 0xffffffff812ef410 <ext4\_rmdir>
+$>>>$ p dir-$>$i\_op-$>$rmdir \\
+\$1 = (int (*)(struct inode *, struct dentry *)) 0xffffffff812ef410 $<$ext4\_rmdir$>$
 \end{quote}
-デバッガで追ったときはsecurity\_inode\_rmdirではなく，dir->i\_op->rmdirで消去を実行した．
-dir->i\_op->rmdirの正体はfs/ext4/namei.cにあるext4\_rmdirだった．
+デバッガで追ったときはsecurity\_inode\_rmdirではなく，dir-$>$i\_op-$>$rmdirで消去を実行した．
+dir-$>$i\_op-$>$rmdirの正体はfs/ext4/namei.cにあるext4\_rmdirだった．
 \begin{quote}
 ─── Source ─────────────
 \\
- 3065      if (unlikely(ext4\_forced\_shutdown(EXT4\_SB(dir->i\_sb)))) \\
+ 3065      if (unlikely(ext4\_forced\_shutdown(EXT4\_SB(dir-$>$i\_sb)))) \\
  3066          return -EIO; \\
  3067 \\
  3068      /* Initialize quotas before so that eventual writes go in \\

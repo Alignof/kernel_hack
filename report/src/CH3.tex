@@ -10,12 +10,12 @@
 詳しい仕様をmanの形式に倣って以下に示す．
 \begin{longlisting}
 \begin{myminted}{sh}{}
-\$ man 2 median
+>>> man 2 median
 NAME
        median - get a median
 
 SYNOPSIS
-       \#include <unistd.h>
+       #include <unistd.h>
 
        int median(int *array, const int size, int *result);
 
@@ -167,7 +167,7 @@ Linux ubuntu 5.17.1 \#AddMedian SMP PREEMPT Sat May 28 00:35:01 JST 2022 x86\_64
 
 \section{システムコールの動作確認}
 インストールしてOSが起動することを確認できたら実際にシステムコールを呼び出して動作を検証する．
-システムコールを呼ぶプログラムの例をリスト\ref{lst:callmadian},\ref{lst:callmadianh}に示す．
+システムコールを呼ぶプログラムの例をリスト\ref{lst:callmedian}, \ref{lst:callmedianh}に示す．
 \begin{longlisting}
 \begin{myminted}{c}{call\_median.c}
 #include <stdio.h>
