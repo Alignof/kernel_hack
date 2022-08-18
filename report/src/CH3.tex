@@ -45,73 +45,49 @@ ERRORS
 上記の仕様に沿って作成したシステムコールをリスト\ref{lst:median}に示す．
 \begin{longlisting}
 \begin{myminted}{c}{my\_syscall.c}
+#include <linux/sort.h>
 #include <linux/syscalls.h>
 
 #define	EFAULT 14	/* Bad address */
 #define	EINVAL 22	/* Invalid argument */
 #define BUFFERSIZE 100
 
-void myswap (int *x, int *y) {
-    int tmp;
+static int compare(const void *l, const void *r) {
+    int lhs = *(const int *)(l);
+    int rhs = *(const int *)(r);
 
-    tmp = *x;
-    *x = *y;
-    *y = tmp;
+    if (lhs < rhs) return -1;
+    if (lhs > rhs) return 1;
+    return 0;
 }
 
-int partition (int *array, int left, int right) {
-    int i = left;
-    int j = right + 1;
-    int pivot = left;
-
-    do {
-        do { i++; } while (array[i] < array[pivot]);
-        do { j--; } while (array[pivot] < array[j]);
-        if (i < j) { myswap(&array[i], &array[j]); }
-    } while (i < j);
-
-    myswap(&array[pivot], &array[j]);
-
-    return j;
-}
-
-void quick_sort (int *array, int left, int right) {
-    int pivot;
-
-    if (left < right) {
-        pivot = partition(array, left, right);
-        quick_sort(array, left, pivot-1);
-        quick_sort(array, pivot+1, right);
-    }
-}
-
-int do_median(int __user *_array, const int size, int __user *_result) {
+int do_array_median(int __user *_array, const int size, int __user *_result) {
     int array[BUFFERSIZE] = {0};
     int result = 0;
 
-    printk("syscall median start.");
-    if (size <= 0) return EINVAL;
-    if (size > BUFFERSIZE) return EINVAL;
-    if (copy_from_user(array, _array, sizeof(int) * size) > 0) return EFAULT;
-    if (copy_from_user(&result, _result, sizeof(int)) > 0) return EFAULT;
+    printk("syscall array_median start.");
+    if (size <= 0) return -EINVAL;
+    if (size > BUFFERSIZE) return -EINVAL;
+    if (copy_from_user(array, _array, sizeof(int) * size) > 0) return -EFAULT;
+    if (copy_from_user(&result, _result, sizeof(int)) > 0) return -EFAULT;
 
-    quick_sort(array, 0, size-1);
+    sort(array, size, sizeof(int), &compare, NULL);
 
     result = array[size/2];
 
-    if (copy_to_user(_result, &result, sizeof(int)) > 0) return EFAULT;
+    if (copy_to_user(_result, &result, sizeof(int)) > 0) return -EFAULT;
     
-    printk("syscall median done.");
+    printk("syscall array_median done.");
     return 0;
 }
 
 // https://elixir.bootlin.com/linux/v5.17.1/source/fs/namei.c#L4097
-SYSCALL_DEFINE3(median,
+SYSCALL_DEFINE3(array_median,
         int __user *, _array,
         const int, size,
         int __user *, _result) {
 
-    return do_median(_array, size, _result);
+    return do_array_median(_array, size, _result);
 }
 \end{myminted}
 \caption{medianの実装}
@@ -177,7 +153,7 @@ int main(void) {
     int array[7] = {6, 2, 7, 1, 3, 5, 4};
     int result = 0;
 
-    syscall(__NR_median, array, 7, &result);
+    syscall(__NR_array_median, array, 7, &result);
     printf("syscall_median(array, 7, &result) -> %d\n", result);
     return 0;
 }
@@ -190,7 +166,6 @@ int main(void) {
 \begin{myminted}{c}{call\_median.h}
 #ifndef __LINUX_NEW_SYSCALL_H
 #define __LINUX_NEW_SYSCALL_H
-#include "unistd_64.h"
 #include <unistd.h>
 #include <asm/unistd.h>
 #endif
@@ -200,25 +175,23 @@ int main(void) {
 \end{longlisting}
 
 syscall関数を使って任意のシステムコールを呼び出すことができるのでそれを利用する．
-第1引数の\_\_NR\_medianはマクロで実際にはlong型の番号が割り当てられている．\cite{unistd32}
+第1引数の\_\_NR\_array\_medianはマクロで実際にはlong型の番号が割り当てられている．\cite{unistd32}
 リスト\ref{lst:callmedianh}で示したcall\_median.hではシステムコールに必要なマクロなどを参照している．
 実行の流れを以下に示す．
 
 \begin{quote}
 \$ cd ~/tmp/CH3 \\
-\$ cp ~/kernel\_hack/linux-5.17.1/arch/x86/include/generated/uapi/asm/unistd\_64.h . \\
 \$ cp ~/kernel\_hack/my\_repo/src/CH3/call\_median* . \\
 \$ gcc call\_median.c -o CallMedian \\
 \$ ./CallMedian
 \end{quote}
-
-call\_median.hで参照するunistd\_64.h事前にをコピーしている．
 
 実際にテストを行う．
 テストに使ったプログラムを\ref{lst:testmedian}に示す．
 \begin{longlisting}
 \begin{myminted}{c}{call\_median.c}
 #include <stdio.h>
+#include <errno.h>
 #include "call_median.h"
 
 #define LARGE_SIZE 1000
@@ -231,23 +204,23 @@ int main(void) {
     int *test_null = NULL;
     int result = 0;
 
-    int ret_ok_1 = syscall(__NR_median, ok_1, 7, &result);
-    if (ret_ok_1 == 0) printf("syscall_median(ok_1, 7, &result) result -> %d\n", result);
+    int ret_ok_1 = syscall(__NR_array_median, ok_1, 7, &result);
+    if (ret_ok_1 == 0) printf("syscall_median(ok_1, 7, &result) result -> %d, errno: %d\n", result, errno);
 
-    int ret_ok_2 = syscall(__NR_median, ok_2, 6, &result);
-    if (ret_ok_2 == 0) printf("syscall_median(ok_2, 6, &result) result -> %d\n", result);
+    int ret_ok_2 = syscall(__NR_array_median, ok_2, 6, &result);
+    if (ret_ok_2 == 0) printf("syscall_median(ok_2, 6, &result) result -> %d, errno: %d\n", result, errno);
 
-    int ret_err_1 = syscall(__NR_median, test, 0, &result);
-    if (ret_err_1) printf("syscall_median(test, 0, &result) returned %d\n", ret_err_1);
+    int ret_err_1 = syscall(__NR_array_median, test, 0, &result);
+    if (ret_err_1) printf("syscall_median(test, 0, &result) returned %d, errno: %d\n", ret_err_1, errno);
 
-    int ret_err_2 = syscall(__NR_median, test, -9, &result);
-    if (ret_err_2) printf("syscall_median(test, -9, &result) returned %d\n", ret_err_2);
+    int ret_err_2 = syscall(__NR_array_median, test, -9, &result);
+    if (ret_err_2) printf("syscall_median(test, -9, &result) returned %d, errno: %d\n", ret_err_2, errno);
 
-    int ret_err_3 = syscall(__NR_median, test_large, LARGE_SIZE, &result);
-    if (ret_err_3) printf("syscall_median(test_large, LARGE_SIZE, &result) returned %d\n", ret_err_3);
+    int ret_err_3 = syscall(__NR_array_median, test_large, LARGE_SIZE, &result);
+    if (ret_err_3) printf("syscall_median(test_large, LARGE_SIZE, &result) returned %d, errno: %d\n", ret_err_3, errno);
 
-    int ret_err_4 = syscall(__NR_median, test_null, 5, &result);
-    if (ret_err_4) printf("syscall_median(test_null, 5, &result) returned %d\n", ret_err_4);
+    int ret_err_4 = syscall(__NR_array_median, test_null, 5, &result);
+    if (ret_err_4) printf("syscall_median(test_null, 5, &result) returned %d, errno: %d\n", ret_err_4, errno);
 
     return 0;
 }
@@ -262,15 +235,15 @@ int main(void) {
 
 \begin{quote}
 \$ ./a.out  \\
-syscall\_median(ok\_1, 7, \&result) result -> 4 \\
-syscall\_median(ok\_2, 6, \&result) result -> 4 \\
-syscall\_median(test, 6, \&result) returned 22 \\
-syscall\_median(test, 6, \&result) returned 22 \\
-syscall\_median(test\_large, LARGE\_SIZE, \&result) returned 22 \\
-syscall\_median(test\_null, 5, \&result) returned 14
+syscall_median(ok_1, 7, &result) result -> 4, errno: 0 \\
+syscall_median(ok_2, 6, &result) result -> 4, errno: 0 \\
+syscall_median(test, 0, &result) returned -1, errno: 22 \\
+syscall_median(test, -9, &result) returned -1, errno: 22 \\
+syscall_median(test_large, LARGE_SIZE, &result) returned -1, errno: 22 \\
+syscall_median(test_null, 5, &result) returned -1, errno: 14 \\
 \end{quote}
 
 正しい動作では期待通りどちらも4を返した．
-不正な動作ではサイズが不正なとき22をNULLが渡されたとき14を返した．
+不正な動作では-1を返し，errnoはサイズが不正なとき22をNULLが渡されたとき14を返した．
 22はEINVAL，14はEFAULTなので期待されたエラーが返されている．
 正しく動作していることが確認できた．

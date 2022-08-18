@@ -32,8 +32,8 @@ $ dmesg | tail -n 1
 $ cd ~/kernel_hack/linux-5.17.1/arch/x86/kernel
 $ cp ~/kernel_hack/myrepo/src/CH3/my_syscall.c  ./median.c
 $ vim ~/kernel_hack/linux-5.17.1/arch/x86/kernel/Makefile (add "obj-y           += median.o" to line 59)
-$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys_median( int __user *array, const int size, float __user *result);" to line 1000)
-$ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336 common  median         sys_median")
+$ vim ../../../include/linux/syscalls.h (add "asmlinkage long sys_array_median( int __user *array, const int size, float __user *result);" to line 1000)
+$ vim ../../../arch/x86/entry/syscalls/syscall_64.tbl (add "336	common	array_median			sys_array_median")
 $ cd ~/kernel_hack/linux-5.17.1/
 $ make -j8 bindeb-pkg  KDEB_PKGVERSION=5.17.1-AddMedian
 ```
